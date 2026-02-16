@@ -60,8 +60,8 @@ function createConfig() {
   const isProduction = nodeEnv === 'production';
   const authMode = String(process.env.AUTH_MODE ?? (isProduction ? 'easy-auth' : 'local')).trim().toLowerCase();
 
-  if (!['easy-auth', 'local'].includes(authMode)) {
-    throw new Error(`AUTH_MODE inválido: ${authMode}. Use "easy-auth" ou "local".`);
+  if (!['easy-auth', 'local', 'hybrid'].includes(authMode)) {
+    throw new Error(`AUTH_MODE inválido: ${authMode}. Use "easy-auth", "local" ou "hybrid".`);
   }
 
   const localUsers = parseLocalUsers(nodeEnv);

@@ -40,6 +40,14 @@ function toPublicUser(user) {
 function createAuth({ config, store }) {
   const localSessions = new Map();
 
+  function easyAuthEnabled() {
+    return config.authMode === 'easy-auth' || config.authMode === 'hybrid';
+  }
+
+  function localAuthEnabled() {
+    return config.authMode === 'local' || config.authMode === 'hybrid';
+  }
+
   function issueToken(userId) {
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = Date.now() + config.localSessionTtlHours * 60 * 60 * 1000;
@@ -135,23 +143,49 @@ function createAuth({ config, store }) {
 
   async function resolveAuth(req, _res, next) {
     try {
-      if (config.authMode === 'easy-auth') {
+      if (easyAuthEnabled()) {
         const session = await readEasyAuthSession(req);
+        if (session.authenticated) {
+          req.auth = {
+            mode: config.authMode,
+            provider: 'easy-auth',
+            authenticated: true,
+            user: session.user,
+            token: null,
+          };
+          return next();
+        }
+
+        if (config.authMode === 'easy-auth') {
+          req.auth = {
+            mode: config.authMode,
+            provider: null,
+            authenticated: false,
+            user: null,
+            token: null,
+          };
+          return next();
+        }
+      }
+
+      if (localAuthEnabled()) {
+        const localSession = await readLocalSession(req);
         req.auth = {
           mode: config.authMode,
-          authenticated: session.authenticated,
-          user: session.user,
-          token: null,
+          provider: localSession.authenticated ? 'local' : null,
+          authenticated: localSession.authenticated,
+          user: localSession.user,
+          token: localSession.token,
         };
         return next();
       }
 
-      const localSession = await readLocalSession(req);
       req.auth = {
         mode: config.authMode,
-        authenticated: localSession.authenticated,
-        user: localSession.user,
-        token: localSession.token,
+        provider: null,
+        authenticated: false,
+        user: null,
+        token: null,
       };
       return next();
     } catch (err) {
@@ -164,7 +198,7 @@ function createAuth({ config, store }) {
     return res.status(401).json({
       error: 'Não autenticado.',
       mode: config.authMode,
-      loginUrl: config.authMode === 'easy-auth' ? '/.auth/login/aad?post_login_redirect_uri=/' : null,
+      loginUrl: easyAuthEnabled() ? '/.auth/login/aad?post_login_redirect_uri=/' : null,
     });
   }
 
@@ -182,26 +216,29 @@ function createAuth({ config, store }) {
     return res.status(200).json({
       authenticated: Boolean(req.auth?.authenticated),
       mode: config.authMode,
+      provider: req.auth?.provider ?? null,
       user: req.auth?.authenticated ? req.auth.user : null,
       token: req.auth?.token ?? null,
-      loginUrl: config.authMode === 'easy-auth' ? '/.auth/login/aad?post_login_redirect_uri=/' : null,
-      logoutUrl: config.authMode === 'easy-auth' ? '/.auth/logout' : null,
+      loginUrl: easyAuthEnabled() ? '/.auth/login/aad?post_login_redirect_uri=/' : null,
+      logoutUrl: req.auth?.provider === 'easy-auth' ? '/.auth/logout' : null,
     });
   }
 
   async function loginHandler(req, res) {
-    if (config.authMode !== 'local') {
+    if (!localAuthEnabled()) {
       return res.status(405).json({ error: 'Login por senha está desabilitado neste ambiente.' });
     }
 
-    const username = String(req.body?.username ?? '').trim().toLowerCase();
+    const identifier = String(req.body?.username ?? req.body?.email ?? '').trim().toLowerCase();
     const password = String(req.body?.password ?? '').trim();
 
-    if (!username || !password) {
-      return res.status(400).json({ error: 'Usuário e senha são obrigatórios.' });
+    if (!identifier || !password) {
+      return res.status(400).json({ error: 'Usuário (ou email) e senha são obrigatórios.' });
     }
 
-    const user = await store.findUserByUsername(username);
+    const user = identifier.includes('@')
+      ? await store.findUserByEmail(identifier)
+      : await store.findUserByUsername(identifier);
     if (!user || !user.isActive || !user.passwordHash || !verifyPassword(password, user.passwordHash)) {
       return res.status(401).json({ error: 'Credenciais inválidas.' });
     }
@@ -214,7 +251,7 @@ function createAuth({ config, store }) {
   }
 
   async function logoutHandler(req, res) {
-    if (config.authMode === 'easy-auth') {
+    if (req.auth?.provider === 'easy-auth') {
       return res.status(200).json({
         ok: true,
         logoutUrl: '/.auth/logout',

@@ -5,7 +5,7 @@ import { Logo } from '../components/Logo';
 import { authStorage, type User } from '../lib/authStorage';
 import { apiJson } from '../lib/api';
 
-type AuthMode = 'local' | 'easy-auth';
+type AuthMode = 'local' | 'easy-auth' | 'hybrid';
 
 type LoginProps = {
   authMode: AuthMode;
@@ -79,26 +79,8 @@ export default function Login({ authMode, onAuthenticated }: LoginProps) {
     </div>
   );
 
-  if (authMode === 'easy-auth') {
-    return (
-      <Card>
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-[var(--text)]">Bem-vindo de volta</h1>
-          <p className="mt-2 text-sm text-[var(--text-muted)]">Autenticação corporativa habilitada</p>
-        </div>
-        <a
-          href={`/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(easyAuthRedirectUri)}`}
-          className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[var(--primary-dark)]"
-        >
-          <svg className="h-5 w-5" viewBox="0 0 21 21" fill="none"><path d="M10 0H0v10h10V0Z" fill="#f25022"/><path d="M21 0H11v10h10V0Z" fill="#7fba00"/><path d="M10 11H0v10h10V11Z" fill="#00a4ef"/><path d="M21 11H11v10h10V11Z" fill="#ffb900"/></svg>
-          Entrar com Microsoft
-        </a>
-      </Card>
-    );
-  }
-
-  return (
-    <Card>
+  const LocalForm = (
+    <>
       <div className="text-center lg:text-left">
         <h1 className="text-2xl font-bold text-[var(--text)]">Bem-vindo de volta</h1>
         <p className="mt-1 text-sm text-[var(--text-muted)]">Acesso ao painel de controle interno</p>
@@ -106,12 +88,12 @@ export default function Login({ authMode, onAuthenticated }: LoginProps) {
 
       <form className="mt-8 grid gap-5" onSubmit={handleSubmit}>
         <label className="grid gap-1.5">
-          <span className="text-sm font-semibold text-[var(--text)]">Usuário</span>
+          <span className="text-sm font-semibold text-[var(--text)]">Usuário ou e-mail</span>
           <input
             className="rounded-lg border border-[var(--panel-border)] bg-white px-3.5 py-2.5 text-sm text-[var(--text)] outline-none transition focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-lighter)]"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="Digite seu usuário"
+            placeholder="Digite seu usuário ou e-mail"
             autoComplete="username"
             required
           />
@@ -144,6 +126,55 @@ export default function Login({ authMode, onAuthenticated }: LoginProps) {
           {loading ? 'Entrando…' : 'Entrar'}
         </button>
       </form>
+    </>
+  );
+
+  const MicrosoftButton = (
+    <a
+      href={`/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(easyAuthRedirectUri)}`}
+      className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[var(--primary-dark)]"
+    >
+      <svg className="h-5 w-5" viewBox="0 0 21 21" fill="none"><path d="M10 0H0v10h10V0Z" fill="#f25022"/><path d="M21 0H11v10h10V0Z" fill="#7fba00"/><path d="M10 11H0v10h10V11Z" fill="#00a4ef"/><path d="M21 11H11v10h10V11Z" fill="#ffb900"/></svg>
+      Entrar com Microsoft
+    </a>
+  );
+
+  if (authMode === 'easy-auth') {
+    return (
+      <Card>
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-[var(--text)]">Bem-vindo de volta</h1>
+          <p className="mt-2 text-sm text-[var(--text-muted)]">Autenticação corporativa habilitada</p>
+        </div>
+        {MicrosoftButton}
+      </Card>
+    );
+  }
+
+  if (authMode === 'hybrid') {
+    return (
+      <Card>
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-[var(--text)]">Bem-vindo de volta</h1>
+          <p className="mt-2 text-sm text-[var(--text-muted)]">Escolha como deseja entrar</p>
+        </div>
+
+        {MicrosoftButton}
+
+        <div className="mt-8 flex items-center gap-3">
+          <div className="h-px flex-1 bg-[var(--panel-border)]" />
+          <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">ou</span>
+          <div className="h-px flex-1 bg-[var(--panel-border)]" />
+        </div>
+
+        {LocalForm}
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      {LocalForm}
     </Card>
   );
 }

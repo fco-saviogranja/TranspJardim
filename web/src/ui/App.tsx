@@ -31,11 +31,12 @@ import { Logo } from './components/Logo';
 import { authStorage, type User } from './lib/authStorage';
 import { apiFetch, apiJson } from './lib/api';
 
-type AuthMode = 'local' | 'easy-auth';
+type AuthMode = 'local' | 'easy-auth' | 'hybrid';
 
 type SessionResponse = {
   authenticated: boolean;
   mode: AuthMode;
+  provider?: 'local' | 'easy-auth' | null;
   user: User | null;
   token?: string | null;
   logoutUrl?: string | null;
@@ -201,9 +202,10 @@ export default function App() {
       setAuthMode(session.mode ?? 'local');
 
       if (session.authenticated && session.user) {
+        const provider = session.provider ?? null;
         authStorage.setAuth({
           user: session.user,
-          token: session.mode === 'easy-auth' ? null : (session.token ?? authStorage.getToken()),
+          token: provider === 'easy-auth' ? null : (session.token ?? authStorage.getToken()),
         });
       } else {
         authStorage.clear();
@@ -227,8 +229,8 @@ export default function App() {
       ? ((await res.json().catch(() => ({}))) as { logoutUrl?: string })
       : undefined;
     authStorage.clear();
-    if (authMode === 'easy-auth') {
-      const base = payload?.logoutUrl || '/.auth/logout';
+    if (payload?.logoutUrl) {
+      const base = payload.logoutUrl;
       const post = encodeURIComponent(`${window.location.origin}/login`);
       const joiner = base.includes('?') ? '&' : '?';
       window.location.href = `${base}${joiner}post_logout_redirect_uri=${post}`;
