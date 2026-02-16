@@ -1,8 +1,8 @@
 import React from 'react';
 
-export function Panel({ children }: { children: React.ReactNode }) {
+export function Panel({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[var(--shadow-sm)]">
+    <section className={`rounded-xl border border-[var(--panel-border)] bg-white p-6 shadow-[var(--shadow-sm)] ${className}`}>
       {children}
     </section>
   );

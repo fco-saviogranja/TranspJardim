@@ -9,10 +9,14 @@ import {
 import {
   BarChart3,
   Bell,
+  ChevronLeft,
   FileText,
   LayoutDashboard,
   LogOut,
+  Menu,
   Settings,
+  Shield,
+  Users,
 } from 'lucide-react';
 
 import Dashboard from './pages/Dashboard';
@@ -23,6 +27,7 @@ import Relatorios from './pages/Relatorios';
 import Administracao from './pages/Administracao';
 import Login from './pages/Login';
 
+import { Logo } from './components/Logo';
 import { authStorage, type User } from './lib/authStorage';
 import { apiFetch, apiJson } from './lib/api';
 
@@ -36,157 +41,155 @@ type SessionResponse = {
   logoutUrl?: string | null;
 };
 
-function TopBar({ user, onLogout }: { user: User | null; onLogout: () => void }) {
-  return (
-    <div className="bg-[var(--jardim-green)] text-white">
-      <div className="mx-auto flex max-w-[1100px] flex-wrap items-center justify-between gap-3 px-4 py-2 text-sm">
-        <div className="flex items-center gap-4">
-          <a className="opacity-95 hover:opacity-100 hover:underline" href="#">Transparência</a>
-          <a className="opacity-95 hover:opacity-100 hover:underline" href="#">Ouvidoria</a>
-        </div>
+/* ─── Navigation items ─── */
+const NAV_ITEMS = [
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/criterios', icon: FileText, label: 'Critérios' },
+  { to: '/alertas', icon: Bell, label: 'Alertas' },
+  { to: '/relatorios', icon: BarChart3, label: 'Relatórios' },
+  { to: '/administracao', icon: Settings, label: 'Administração' },
+];
 
-        <div className="flex items-center gap-3">
-          <span className="inline-flex h-2 w-2 rounded-full bg-green-400" aria-hidden />
-          <span className="opacity-95">Online</span>
-          <span className="opacity-60">•</span>
-          <span className="font-semibold">{user?.name ?? 'Usuário'}</span>
-          <button className="inline-flex items-center gap-2 opacity-95 hover:opacity-100 hover:underline" type="button" onClick={onLogout}>
-            <LogOut className="h-4 w-4" />
-            Sair
+/* ─── Sidebar ─── */
+function Sidebar({
+  user,
+  collapsed,
+  onToggle,
+  onLogout,
+}: {
+  user: User | null;
+  collapsed: boolean;
+  onToggle: () => void;
+  onLogout: () => void;
+}) {
+  return (
+    <aside
+      className={`fixed inset-y-0 left-0 z-40 flex flex-col bg-[var(--sidebar-bg)] transition-all duration-200 ${
+        collapsed ? 'w-[68px]' : 'w-[240px]'
+      }`}
+    >
+      {/* Header */}
+      <div className="flex h-16 items-center gap-3 border-b border-white/10 px-4">
+        <Logo size={32} light />
+        {!collapsed && (
+          <span className="text-base font-bold tracking-tight text-white">
+            TranspJardim
+          </span>
+        )}
+      </div>
+
+      {/* Navigation */}
+      <nav className="mt-4 flex flex-1 flex-col gap-1 px-3" aria-label="Navegação principal">
+        {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
+          <NavLink
+            key={to}
+            to={to}
+            title={label}
+            className={({ isActive }) =>
+              `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                isActive
+                  ? 'bg-[var(--primary)] text-white'
+                  : 'text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)] hover:text-white'
+              }`
+            }
+          >
+            <Icon className="h-[18px] w-[18px] shrink-0" />
+            {!collapsed && <span>{label}</span>}
+          </NavLink>
+        ))}
+      </nav>
+
+      {/* Footer – user info */}
+      <div className="border-t border-white/10 p-3">
+        {!collapsed && user && (
+          <div className="mb-2 px-3">
+            <div className="truncate text-sm font-semibold text-white">{user.name ?? 'Usuário'}</div>
+            <div className="truncate text-xs text-[var(--sidebar-text)]">{user.email ?? ''}</div>
+          </div>
+        )}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onLogout}
+            title="Sair"
+            className="flex flex-1 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)] hover:text-white"
+            type="button"
+          >
+            <LogOut className="h-[18px] w-[18px] shrink-0" />
+            {!collapsed && <span>Sair</span>}
+          </button>
+          <button
+            onClick={onToggle}
+            title={collapsed ? 'Expandir menu' : 'Recolher menu'}
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)] hover:text-white"
+            type="button"
+          >
+            {collapsed ? <Menu className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
           </button>
         </div>
       </div>
-    </div>
+    </aside>
   );
 }
 
-function HeaderNav() {
-  const linkBase =
-    'inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100';
-  const linkActive = 'bg-[var(--jardim-green)] text-white hover:bg-[var(--jardim-green)]';
-
-  return (
-    <div className="border-b border-slate-200 bg-white shadow-sm">
-      <div className="mx-auto flex max-w-[1100px] flex-wrap items-center justify-between gap-4 px-4 py-4">
-        <div className="flex items-center gap-3">
-          <div className="grid h-11 w-11 place-items-center rounded-xl bg-[var(--jardim-green-lighter)]">
-            <BarChart3 className="h-5 w-5 text-[var(--jardim-green)]" />
-          </div>
-          <div>
-            <div className="text-3xl font-black leading-none text-[var(--jardim-green)]">
-              TranspJardim
-            </div>
-            <div className="mt-0.5 text-xs text-slate-500">Transparência Municipal</div>
-          </div>
-        </div>
-
-        <nav className="flex flex-wrap items-center gap-2" aria-label="Navegação principal">
-          <NavLink to="/dashboard" className={({ isActive }) => `${linkBase} ${isActive ? linkActive : ''}`}>
-            <LayoutDashboard className="h-4 w-4" />
-            Dashboard
-          </NavLink>
-          <NavLink to="/criterios" className={({ isActive }) => `${linkBase} ${isActive ? linkActive : ''}`}>
-            <FileText className="h-4 w-4" />
-            Critérios
-          </NavLink>
-          <NavLink to="/alertas" className={({ isActive }) => `${linkBase} ${isActive ? linkActive : ''}`}>
-            <Bell className="h-4 w-4" />
-            Alertas
-          </NavLink>
-          <NavLink to="/relatorios" className={({ isActive }) => `${linkBase} ${isActive ? linkActive : ''}`}>
-            <BarChart3 className="h-4 w-4" />
-            Relatórios
-          </NavLink>
-          <NavLink to="/administracao" className={({ isActive }) => `${linkBase} ${isActive ? linkActive : ''}`}>
-            <Settings className="h-4 w-4" />
-            Administração
-          </NavLink>
-        </nav>
-      </div>
-    </div>
-  );
-}
-
-function Breadcrumb() {
+/* ─── Top bar ─── */
+function TopBar({ user }: { user: User | null }) {
   const location = useLocation();
 
-  const label = useMemo(() => {
-    const path = location.pathname;
-    if (path.startsWith('/criterios/secretarias')) return 'Critérios de Controle › Gerenciar Secretarias';
-    if (path.startsWith('/criterios')) return 'Critérios';
-    if (path.startsWith('/alertas')) return 'Alertas';
-    if (path.startsWith('/relatorios')) return 'Relatórios Avançados';
-    if (path.startsWith('/administracao')) return 'Administração';
+  const pageTitle = useMemo(() => {
+    const p = location.pathname;
+    if (p.startsWith('/criterios/secretarias')) return 'Secretarias';
+    if (p.startsWith('/criterios')) return 'Critérios';
+    if (p.startsWith('/alertas')) return 'Alertas';
+    if (p.startsWith('/relatorios')) return 'Relatórios';
+    if (p.startsWith('/administracao')) return 'Administração';
     return 'Dashboard';
   }, [location.pathname]);
 
   return (
-    <div className="flex items-center gap-2 px-0 py-3 text-sm">
-      <span className="text-slate-500">Início</span>
-      <span className="text-slate-400">›</span>
-      <span className="font-medium text-slate-700">{label}</span>
-    </div>
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[var(--panel-border)] bg-white/80 px-6 backdrop-blur-md">
+      <div>
+        <h1 className="text-lg font-bold text-[var(--text)]">{pageTitle}</h1>
+      </div>
+      <div className="flex items-center gap-3">
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--primary-lighter)] text-sm font-bold text-[var(--primary)]">
+          {(user?.name ?? 'U').charAt(0).toUpperCase()}
+        </div>
+        <div className="hidden sm:block">
+          <div className="text-sm font-semibold text-[var(--text)]">{user?.name ?? 'Usuário'}</div>
+          <div className="text-xs text-[var(--text-muted)]">{user?.role === 'admin' ? 'Administrador' : 'Padrão'}</div>
+        </div>
+      </div>
+    </header>
   );
 }
 
-function Footer() {
-  return (
-    <footer className="mt-10 bg-[var(--jardim-green)] text-white">
-      <div className="mx-auto grid max-w-[1100px] grid-cols-1 gap-6 px-4 py-8 md:grid-cols-3">
-        <div>
-          <div className="text-base font-black">Controladoria Municipal de Jardim</div>
-          <div className="mt-1 text-sm opacity-90">Ceará - Brasil</div>
-          <p className="mt-4 text-sm opacity-90">
-            Plataforma de transparência, eficiência e monitoriamento de critérios para gestão pública municipal.
-          </p>
-        </div>
-        <div>
-          <div className="text-base font-black">Contato</div>
-          <div className="mt-2 text-sm opacity-90">Rua Central, s/n - Centro, Jardim/CE</div>
-          <div className="mt-1 text-sm opacity-90">(85) 3000-0000</div>
-          <div className="mt-1 text-sm opacity-90">controleinterno@transpjardim.com</div>
-          <div className="mt-1 text-sm opacity-90">Seg-Sex: 8h às 17h</div>
-        </div>
-        <div>
-          <div className="text-base font-black">Acesso Rápido</div>
-          <div className="mt-2 text-sm opacity-90">Portal da Transparência</div>
-          <div className="mt-1 text-sm opacity-90">Ouvidoria Municipal</div>
-          <div className="mt-1 text-sm opacity-90">Lei de Acesso à Informação</div>
-          <div className="mt-1 text-sm opacity-90">Portal de Serviços</div>
-          <div className="mt-4 text-sm opacity-90">jardim.ce.gov.br</div>
-        </div>
-      </div>
-
-      <div className="border-t border-white/20">
-        <div className="mx-auto flex max-w-[1100px] flex-wrap items-center justify-between gap-3 px-4 py-4 text-xs opacity-90">
-          <span>© 2026 Prefeitura Municipal de Jardim - Todos os direitos reservados</span>
-          <span>TranspJardim v1.0 • Desenvolvido pela Controladoria Geral do Município</span>
-        </div>
-      </div>
-    </footer>
-  );
-}
-
+/* ─── Shell ─── */
 function Shell({ user, onLogout, children }: { user: User | null; onLogout: () => void; children: React.ReactNode }) {
+  const [collapsed, setCollapsed] = useState(false);
+
   return (
     <div className="min-h-screen">
-      <TopBar user={user} onLogout={onLogout} />
-      <HeaderNav />
-      <main className="mx-auto w-full max-w-[1100px] flex-1 px-4">
-        <Breadcrumb />
-        {children}
-      </main>
-      <Footer />
+      <Sidebar user={user} collapsed={collapsed} onToggle={() => setCollapsed((p) => !p)} onLogout={onLogout} />
+      <div
+        className={`transition-all duration-200 ${collapsed ? 'ml-[68px]' : 'ml-[240px]'}`}
+      >
+        <TopBar user={user} />
+        <main className="mx-auto w-full max-w-[1200px] p-6">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }
 
+/* ─── Route guard ─── */
 function RequireAuth({ user, children }: { user: User | null; children: React.ReactNode }) {
   const location = useLocation();
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   return children;
 }
 
+/* ─── App root ─── */
 export default function App() {
   const [user, setUser] = useState<User | null>(() => authStorage.getUser());
   const [authMode, setAuthMode] = useState<AuthMode>('local');
@@ -234,8 +237,11 @@ export default function App() {
 
   if (!ready) {
     return (
-      <div className="grid min-h-screen place-items-center text-sm text-slate-600">
-        Carregando sessão...
+      <div className="grid min-h-screen place-items-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-[var(--primary-lighter)] border-t-[var(--primary)]" />
+          <span className="text-sm font-medium text-[var(--text-muted)]">Carregando...</span>
+        </div>
       </div>
     );
   }

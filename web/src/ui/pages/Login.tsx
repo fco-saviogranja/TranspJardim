@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ShieldCheck } from 'lucide-react';
 
+import { Logo } from '../components/Logo';
 import { authStorage, type User } from '../lib/authStorage';
 import { apiJson } from '../lib/api';
 
@@ -45,79 +45,105 @@ export default function Login({ authMode, onAuthenticated }: LoginProps) {
     }
   }
 
-  if (authMode === 'easy-auth') {
-    return (
-      <div className="grid min-h-screen place-items-center bg-gradient-to-b from-emerald-50 via-[#f4f8f4] to-[var(--bg)] px-4">
-        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-[var(--shadow-md)]">
-          <div className="mx-auto grid h-28 w-28 place-items-center rounded-2xl bg-[var(--jardim-green-lighter)]">
-            <ShieldCheck className="h-12 w-12 text-[var(--jardim-green)]" />
-          </div>
-          <div className="mt-4 text-center">
-            <div className="text-sm font-black tracking-widest text-[var(--jardim-green)]">TRANSPJARDIM</div>
-            <div className="mt-2 text-sm text-slate-500">Autenticação corporativa habilitada.</div>
-          </div>
-          <a
-            href={`/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(easyAuthRedirectUri)}`}
-            className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-[var(--jardim-green)] px-4 py-3 text-sm font-black text-white shadow-sm hover:opacity-95"
-          >
-            Entrar com Microsoft
-          </a>
+  /* ─── card shared wrapper ─── */
+  const Card = ({ children }: { children: React.ReactNode }) => (
+    <div className="relative grid min-h-screen lg:grid-cols-2">
+      {/* left panel – branding */}
+      <div className="hidden flex-col items-center justify-center gap-6 bg-[var(--sidebar-bg)] px-10 lg:flex">
+        <Logo size={72} light />
+        <h2 className="text-3xl font-extrabold tracking-tight text-white">TranspJardim</h2>
+        <p className="max-w-xs text-center text-sm leading-relaxed text-slate-400">
+          Plataforma de transparência, eficiência e monitoramento de critérios para gestão pública municipal.
+        </p>
+        <div className="mt-4 flex items-center gap-2">
+          <span className="h-1.5 w-8 rounded-full bg-[var(--primary)]" />
+          <span className="h-1.5 w-8 rounded-full bg-[var(--primary)]/40" />
+          <span className="h-1.5 w-8 rounded-full bg-[var(--primary)]/20" />
         </div>
       </div>
+
+      {/* right panel – form */}
+      <div className="flex flex-col items-center justify-center bg-[var(--bg)] px-6 py-12">
+        <div className="w-full max-w-sm">
+          {/* mobile logo */}
+          <div className="mb-8 flex items-center justify-center gap-3 lg:hidden">
+            <Logo size={40} />
+            <span className="text-xl font-extrabold text-[var(--text)]">TranspJardim</span>
+          </div>
+          {children}
+        </div>
+        <p className="mt-10 text-center text-xs text-[var(--text-muted)]">
+          © {new Date().getFullYear()} Prefeitura Municipal de Jardim &middot; Controladoria Geral
+        </p>
+      </div>
+    </div>
+  );
+
+  if (authMode === 'easy-auth') {
+    return (
+      <Card>
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-[var(--text)]">Bem-vindo de volta</h1>
+          <p className="mt-2 text-sm text-[var(--text-muted)]">Autenticação corporativa habilitada</p>
+        </div>
+        <a
+          href={`/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(easyAuthRedirectUri)}`}
+          className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[var(--primary-dark)]"
+        >
+          <svg className="h-5 w-5" viewBox="0 0 21 21" fill="none"><path d="M10 0H0v10h10V0Z" fill="#f25022"/><path d="M21 0H11v10h10V0Z" fill="#7fba00"/><path d="M10 11H0v10h10V11Z" fill="#00a4ef"/><path d="M21 11H11v10h10V11Z" fill="#ffb900"/></svg>
+          Entrar com Microsoft
+        </a>
+      </Card>
     );
   }
 
   return (
-    <div className="grid min-h-screen place-items-center bg-gradient-to-b from-emerald-50 via-[#f4f8f4] to-[var(--bg)] px-4">
-      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-[var(--shadow-md)]">
-        <div className="mx-auto grid h-28 w-28 place-items-center rounded-2xl bg-[var(--jardim-green-lighter)]">
-          <ShieldCheck className="h-12 w-12 text-[var(--jardim-green)]" />
-        </div>
-
-        <div className="mt-4 text-center">
-          <div className="text-sm font-black tracking-widest text-[var(--jardim-green)]">TRANSPJARDIM</div>
-          <div className="mt-2 text-sm text-slate-500">Acesso local de desenvolvimento</div>
-        </div>
-
-        <form className="mt-6 grid gap-4" onSubmit={handleSubmit}>
-          <label className="grid gap-2 text-sm font-semibold">
-            <span className="text-slate-700">Usuário</span>
-            <input
-              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm outline-none focus:border-transparent focus:ring-4 focus:ring-emerald-200/60"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Digite seu usuário"
-              autoComplete="username"
-              required
-            />
-          </label>
-
-          <label className="grid gap-2 text-sm font-semibold">
-            <span className="text-slate-700">Senha</span>
-            <input
-              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm outline-none focus:border-transparent focus:ring-4 focus:ring-emerald-200/60"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Digite sua senha"
-              autoComplete="current-password"
-              required
-              type="password"
-            />
-          </label>
-
-          {error ? (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-3 text-sm text-red-800">{error}</div>
-          ) : null}
-
-          <button
-            className="rounded-xl bg-[var(--jardim-green)] px-4 py-3 text-sm font-black text-white shadow-sm hover:opacity-95 disabled:opacity-60"
-            type="submit"
-            disabled={loading}
-          >
-            {loading ? 'Entrando…' : 'Entrar'}
-          </button>
-        </form>
+    <Card>
+      <div className="text-center lg:text-left">
+        <h1 className="text-2xl font-bold text-[var(--text)]">Bem-vindo de volta</h1>
+        <p className="mt-1 text-sm text-[var(--text-muted)]">Acesso ao painel de controle interno</p>
       </div>
-    </div>
+
+      <form className="mt-8 grid gap-5" onSubmit={handleSubmit}>
+        <label className="grid gap-1.5">
+          <span className="text-sm font-semibold text-[var(--text)]">Usuário</span>
+          <input
+            className="rounded-lg border border-[var(--panel-border)] bg-white px-3.5 py-2.5 text-sm text-[var(--text)] outline-none transition focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-lighter)]"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Digite seu usuário"
+            autoComplete="username"
+            required
+          />
+        </label>
+
+        <label className="grid gap-1.5">
+          <span className="text-sm font-semibold text-[var(--text)]">Senha</span>
+          <input
+            className="rounded-lg border border-[var(--panel-border)] bg-white px-3.5 py-2.5 text-sm text-[var(--text)] outline-none transition focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-lighter)]"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Digite sua senha"
+            autoComplete="current-password"
+            required
+            type="password"
+          />
+        </label>
+
+        {error ? (
+          <div className="rounded-lg border border-[var(--danger)]/30 bg-[var(--danger)]/5 px-3.5 py-2.5 text-sm text-[var(--danger)]">
+            {error}
+          </div>
+        ) : null}
+
+        <button
+          className="rounded-xl bg-[var(--primary)] px-4 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[var(--primary-dark)] disabled:opacity-60"
+          type="submit"
+          disabled={loading}
+        >
+          {loading ? 'Entrando…' : 'Entrar'}
+        </button>
+      </form>
+    </Card>
   );
 }

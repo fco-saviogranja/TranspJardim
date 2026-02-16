@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Bell, CheckCircle, Download, Eye, Search } from 'lucide-react';
 import { Panel } from '../components/Panel';
 import { Button } from '../components/Button';
 import { apiFetch, apiJson } from '../lib/api';
@@ -68,45 +69,53 @@ export default function Alertas() {
   }
 
   return (
-    <Panel>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="text-xl font-black text-slate-800">Central de Alertas</div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" type="button" onClick={() => setCompact((prev) => !prev)}>
-            {compact ? 'Vista Expandida' : 'Vista Compacta'}
-          </Button>
-          <Button variant="outline" type="button" onClick={exportCsv}>Exportar</Button>
+    <div className="grid gap-5">
+      <Panel>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-bold text-[var(--text)]">Central de Alertas</h2>
+            <p className="mt-1 text-sm text-[var(--text-muted)]">Monitore e gerencie alertas do sistema</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" type="button" size="sm" onClick={() => setCompact((prev) => !prev)}>
+              <Eye className="mr-1.5 h-3.5 w-3.5" />{compact ? 'Expandida' : 'Compacta'}
+            </Button>
+            <Button variant="outline" type="button" size="sm" onClick={exportCsv}>
+              <Download className="mr-1.5 h-3.5 w-3.5" />Exportar
+            </Button>
+          </div>
         </div>
-      </div>
 
-      <div className="mt-4 inline-flex rounded-full bg-slate-100 p-1">
-        <button
-          className={`rounded-full px-4 py-2 text-sm font-black ${tab === 'alertas' ? 'bg-white shadow-sm' : 'text-slate-500'}`}
-          type="button"
-          onClick={() => setTab('alertas')}
-        >
-          Alertas
-        </button>
-        <button
-          className={`rounded-full px-4 py-2 text-sm font-black ${tab === 'estatisticas' ? 'bg-white shadow-sm' : 'text-slate-500'}`}
-          type="button"
-          onClick={() => setTab('estatisticas')}
-        >
-          Estatísticas
-        </button>
-      </div>
+        <div className="mt-4 inline-flex rounded-lg border border-[var(--panel-border)] bg-[var(--bg)] p-1">
+          <button
+            className={`rounded-md px-4 py-2 text-sm font-semibold transition ${tab === 'alertas' ? 'bg-white text-[var(--text)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}
+            type="button"
+            onClick={() => setTab('alertas')}
+          >
+            Alertas
+          </button>
+          <button
+            className={`rounded-md px-4 py-2 text-sm font-semibold transition ${tab === 'estatisticas' ? 'bg-white text-[var(--text)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}
+            type="button"
+            onClick={() => setTab('estatisticas')}
+          >
+            Estatísticas
+          </button>
+        </div>
+      </Panel>
 
       {tab === 'estatisticas' ? (
-        <div className="mt-6 grid gap-3 md:grid-cols-3">
-          <StatsCard title="Total" value={estatisticas.total} />
-          <StatsCard title="Novos" value={estatisticas.novos} />
-          <StatsCard title="Lidos" value={estatisticas.lidos} />
+        <div className="grid gap-4 md:grid-cols-3">
+          <StatsCard title="Total" value={estatisticas.total} icon={Bell} color="text-[var(--primary)]" bg="bg-[var(--primary-lighter)]" />
+          <StatsCard title="Novos" value={estatisticas.novos} icon={Bell} color="text-[var(--warning)]" bg="bg-amber-50" />
+          <StatsCard title="Lidos" value={estatisticas.lidos} icon={CheckCircle} color="text-[var(--success)]" bg="bg-emerald-50" />
         </div>
       ) : (
         <>
-          <div className="mt-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
             <input
-              className="w-full max-w-sm rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm shadow-sm"
+              className="w-full max-w-sm rounded-lg border border-[var(--panel-border)] bg-white py-2 pl-9 pr-3 text-sm text-[var(--text)] outline-none transition focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-lighter)]"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Buscar alertas..."
@@ -114,44 +123,64 @@ export default function Alertas() {
           </div>
 
           {!filtered.length ? (
-            <div className="mt-8 rounded-2xl border border-dashed border-slate-200 px-4 py-12 text-center text-sm text-slate-500">
-              Nenhum alerta ativo no momento
-            </div>
+            <Panel className="flex flex-col items-center justify-center py-12">
+              <Bell className="h-8 w-8 text-[var(--text-muted)]" />
+              <span className="mt-2 text-sm text-[var(--text-muted)]">Nenhum alerta ativo no momento</span>
+            </Panel>
           ) : (
-            <div className={`mt-5 grid ${compact ? 'gap-1' : 'gap-2'}`}>
+            <div className={`grid ${compact ? 'gap-1' : 'gap-2'}`}>
               {filtered.map((it) => (
-                <div key={it.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                <Panel key={it.id} className="flex items-center justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm font-semibold text-slate-800">{it.mensagem ?? it.tipo}</div>
+                    <div className="text-sm font-semibold text-[var(--text)]">{it.mensagem ?? it.tipo}</div>
                     {!compact ? (
-                      <div className="mt-1 text-xs text-slate-500">
-                        {it.prioridade ?? 'baixa'} • {it.createdAt ? new Date(it.createdAt).toLocaleString('pt-BR') : 'sem data'}
+                      <div className="mt-1 flex items-center gap-2 text-xs text-[var(--text-muted)]">
+                        <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${priorityBadge(it.prioridade)}`}>
+                          {it.prioridade ?? 'baixa'}
+                        </span>
+                        <span>{it.createdAt ? new Date(it.createdAt).toLocaleString('pt-BR') : 'sem data'}</span>
                       </div>
                     ) : null}
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-500">{it.lido ? 'lido' : 'novo'}</span>
+                    <span className={`text-xs font-medium ${it.lido ? 'text-[var(--success)]' : 'text-[var(--warning)]'}`}>
+                      {it.lido ? 'lido' : 'novo'}
+                    </span>
                     {!it.lido ? (
-                      <Button type="button" variant="outline" onClick={() => { void markAsRead(it.id); }}>
+                      <Button type="button" variant="outline" size="sm" onClick={() => { void markAsRead(it.id); }}>
                         Marcar lido
                       </Button>
                     ) : null}
                   </div>
-                </div>
+                </Panel>
               ))}
             </div>
           )}
         </>
       )}
-    </Panel>
+    </div>
   );
 }
 
-function StatsCard({ title, value }: { title: string; value: number }) {
+function priorityBadge(p?: string) {
+  const map: Record<string, string> = {
+    alta: 'bg-red-50 text-[var(--danger)]',
+    média: 'bg-amber-50 text-[var(--warning)]',
+    baixa: 'bg-blue-50 text-[var(--info)]',
+  };
+  return map[(p ?? 'baixa').toLowerCase()] ?? 'bg-slate-100 text-[var(--text-muted)]';
+}
+
+function StatsCard({ title, value, icon: Icon, color, bg }: { title: string; value: number; icon: React.ElementType; color: string; bg: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[var(--shadow-sm)]">
-      <div className="text-xs font-bold text-slate-500">{title}</div>
-      <div className="mt-2 text-3xl font-black text-slate-800">{value}</div>
-    </div>
+    <Panel className="flex items-start gap-3">
+      <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${bg}`}>
+        <Icon className={`h-5 w-5 ${color}`} />
+      </div>
+      <div>
+        <div className="text-xs font-medium text-[var(--text-muted)]">{title}</div>
+        <div className="mt-0.5 text-2xl font-extrabold text-[var(--text)]">{value}</div>
+      </div>
+    </Panel>
   );
 }

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Download, Filter, Pencil, Plus, Search, Trash2, Users } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
 import { Panel } from '../components/Panel';
@@ -162,38 +163,54 @@ export default function Criterios() {
     downloadCsv('criterios.csv', csv);
   }
 
-  return (
-    <div className="grid gap-4">
-      <Panel>
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-5">
-          <div className="text-xl font-black text-slate-800">Critérios e Indicadores</div>
-          <div className="mt-1 text-sm text-slate-500">Gerencie e acompanhe todos os critérios de transparência municipal</div>
+  const statusBadge = (s: string) => {
+    const map: Record<string, string> = {
+      Ativo: 'bg-emerald-50 text-[var(--success)]',
+      Concluído: 'bg-blue-50 text-[var(--info)]',
+      Pendente: 'bg-amber-50 text-[var(--warning)]',
+      Vencido: 'bg-red-50 text-[var(--danger)]',
+    };
+    return map[s] ?? 'bg-slate-100 text-[var(--text-muted)]';
+  };
 
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+  return (
+    <div className="grid gap-5">
+      <Panel>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-[var(--text)]">Critérios e Indicadores</h2>
+            <p className="mt-1 text-sm text-[var(--text-muted)]">Gerencie e acompanhe todos os critérios de transparência municipal</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={exportCsv}><Download className="mr-1.5 h-3.5 w-3.5" />Exportar</Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => navigate('/criterios/secretarias')}><Users className="mr-1.5 h-3.5 w-3.5" />Secretarias</Button>
+            <Button type="button" variant="primary" size="sm" onClick={openCreateModal}><Plus className="mr-1.5 h-3.5 w-3.5" />Novo Critério</Button>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
             <input
-              className="w-full max-w-sm rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm shadow-sm"
+              className="w-full rounded-lg border border-[var(--panel-border)] bg-white py-2 pl-9 pr-3 text-sm text-[var(--text)] outline-none transition focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-lighter)]"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Buscar critérios..."
             />
-
-            <div className="flex flex-wrap items-center gap-2">
-              <select
-                className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm"
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-              >
-                <option value="todos">Todos</option>
-                <option value="ativo">Ativo</option>
-                <option value="pendente">Pendente</option>
-                <option value="vencido">Vencido</option>
-                <option value="concluído">Concluído</option>
-              </select>
-
-              <Button type="button" variant="outline" onClick={exportCsv}>Exportar</Button>
-              <Button type="button" variant="outline" onClick={() => navigate('/criterios/secretarias')}>Secretarias</Button>
-              <Button type="button" variant="primary" onClick={openCreateModal}>+ Novo Critério</Button>
-            </div>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Filter className="h-4 w-4 text-[var(--text-muted)]" />
+            <select
+              className="rounded-lg border border-[var(--panel-border)] bg-white px-3 py-2 text-sm text-[var(--text)] outline-none"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+            >
+              <option value="todos">Todos</option>
+              <option value="ativo">Ativo</option>
+              <option value="pendente">Pendente</option>
+              <option value="vencido">Vencido</option>
+              <option value="concluído">Concluído</option>
+            </select>
           </div>
         </div>
       </Panel>
@@ -202,27 +219,29 @@ export default function Criterios() {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] border-separate border-spacing-0">
             <thead>
-              <tr className="text-left text-xs font-black text-slate-600">
-                <th className="border-b border-slate-200 px-3 py-3">Nome</th>
-                <th className="border-b border-slate-200 px-3 py-3">Status</th>
-                <th className="border-b border-slate-200 px-3 py-3">Periodicidade</th>
-                <th className="border-b border-slate-200 px-3 py-3">Secretaria</th>
-                <th className="border-b border-slate-200 px-3 py-3">Responsável</th>
-                <th className="border-b border-slate-200 px-3 py-3">Ações</th>
+              <tr className="text-left text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                <th className="border-b border-[var(--panel-border)] px-4 py-3">Nome</th>
+                <th className="border-b border-[var(--panel-border)] px-4 py-3">Status</th>
+                <th className="border-b border-[var(--panel-border)] px-4 py-3">Periodicidade</th>
+                <th className="border-b border-[var(--panel-border)] px-4 py-3">Secretaria</th>
+                <th className="border-b border-[var(--panel-border)] px-4 py-3">Responsável</th>
+                <th className="border-b border-[var(--panel-border)] px-4 py-3">Ações</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((it) => (
-                <tr key={it.id} className="text-sm">
-                  <td className="border-b border-slate-100 px-3 py-3 font-semibold text-slate-800">{it.nome}</td>
-                  <td className="border-b border-slate-100 px-3 py-3 text-slate-500">{it.status}</td>
-                  <td className="border-b border-slate-100 px-3 py-3 text-slate-500">{it.periodicidade}</td>
-                  <td className="border-b border-slate-100 px-3 py-3 text-slate-500">{it.secretaria}</td>
-                  <td className="border-b border-slate-100 px-3 py-3 text-slate-500">{it.responsavel}</td>
-                  <td className="border-b border-slate-100 px-3 py-3">
-                    <div className="flex items-center gap-2">
-                      <button className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-black hover:bg-slate-50" type="button" onClick={() => openEditModal(it)}>Editar</button>
-                      <button className="rounded-xl border border-red-200 px-3 py-2 text-xs font-black text-red-700 hover:bg-red-50" type="button" onClick={() => { void handleDelete(it.id); }}>Excluir</button>
+                <tr key={it.id} className="text-sm transition-colors hover:bg-slate-50">
+                  <td className="border-b border-[var(--panel-border)]/50 px-4 py-3 font-semibold text-[var(--text)]">{it.nome}</td>
+                  <td className="border-b border-[var(--panel-border)]/50 px-4 py-3">
+                    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusBadge(it.status)}`}>{it.status}</span>
+                  </td>
+                  <td className="border-b border-[var(--panel-border)]/50 px-4 py-3 text-[var(--text-muted)]">{it.periodicidade}</td>
+                  <td className="border-b border-[var(--panel-border)]/50 px-4 py-3 text-[var(--text-muted)]">{it.secretaria}</td>
+                  <td className="border-b border-[var(--panel-border)]/50 px-4 py-3 text-[var(--text-muted)]">{it.responsavel}</td>
+                  <td className="border-b border-[var(--panel-border)]/50 px-4 py-3">
+                    <div className="flex items-center gap-1.5">
+                      <button className="grid h-8 w-8 place-items-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--primary-lighter)] hover:text-[var(--primary)]" type="button" title="Editar" onClick={() => openEditModal(it)}><Pencil className="h-4 w-4" /></button>
+                      <button className="grid h-8 w-8 place-items-center rounded-lg text-[var(--text-muted)] transition hover:bg-red-50 hover:text-[var(--danger)]" type="button" title="Excluir" onClick={() => { void handleDelete(it.id); }}><Trash2 className="h-4 w-4" /></button>
                     </div>
                   </td>
                 </tr>
@@ -230,7 +249,7 @@ export default function Criterios() {
 
               {!filtered.length ? (
                 <tr>
-                  <td className="px-3 py-10 text-center text-sm text-slate-500" colSpan={6}>
+                  <td className="px-4 py-12 text-center text-sm text-[var(--text-muted)]" colSpan={6}>
                     Nenhum critério encontrado com os filtros aplicados.
                   </td>
                 </tr>
@@ -241,11 +260,9 @@ export default function Criterios() {
       </Panel>
 
       <Modal open={showNew} title="Novo Critério" onClose={() => setShowNew(false)}>
-        <div className="text-sm text-slate-500">
-          Preencha as informações para criar um novo critério.
-        </div>
+        <p className="text-sm text-[var(--text-muted)]">Preencha as informações para criar um novo critério.</p>
         <FormFields form={form} setForm={setForm} secretarias={secretarias} />
-        {error ? <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-3 text-sm text-red-800">{error}</div> : null}
+        {error ? <div className="mt-3 rounded-lg border border-[var(--danger)]/30 bg-[var(--danger)]/5 px-3 py-2.5 text-sm text-[var(--danger)]">{error}</div> : null}
         <div className="mt-5 flex items-center justify-end gap-2">
           <Button type="button" variant="outline" onClick={() => setShowNew(false)}>Cancelar</Button>
           <Button type="button" variant="primary" onClick={() => { void handleCreate(); }}>Criar Critério</Button>
@@ -254,7 +271,7 @@ export default function Criterios() {
 
       <Modal open={showEdit} title="Editar Critério" onClose={() => setShowEdit(false)}>
         <FormFields form={form} setForm={setForm} secretarias={secretarias} />
-        {error ? <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-3 text-sm text-red-800">{error}</div> : null}
+        {error ? <div className="mt-3 rounded-lg border border-[var(--danger)]/30 bg-[var(--danger)]/5 px-3 py-2.5 text-sm text-[var(--danger)]">{error}</div> : null}
         <div className="mt-5 flex items-center justify-end gap-2">
           <Button type="button" variant="outline" onClick={() => setShowEdit(false)}>Cancelar</Button>
           <Button type="button" variant="primary" onClick={() => { void handleUpdate(); }}>Salvar</Button>
@@ -273,16 +290,18 @@ function FormFields({
   setForm: React.Dispatch<React.SetStateAction<FormState>>;
   secretarias: Secretaria[];
 }) {
+  const inputCls = 'rounded-lg border border-[var(--panel-border)] bg-white px-3.5 py-2.5 text-sm text-[var(--text)] outline-none transition focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-lighter)]';
+
   return (
-    <div className="mt-4 grid gap-3 md:grid-cols-2">
-      <label className="grid gap-2 text-sm font-semibold">
+    <div className="mt-4 grid gap-4 md:grid-cols-2">
+      <label className="grid gap-1.5 text-sm font-medium text-[var(--text)]">
         <span>Nome do Critério *</span>
-        <input className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm" value={form.nome} onChange={(e) => setForm((p) => ({ ...p, nome: e.target.value }))} />
+        <input className={inputCls} value={form.nome} onChange={(e) => setForm((p) => ({ ...p, nome: e.target.value }))} />
       </label>
 
-      <label className="grid gap-2 text-sm font-semibold">
+      <label className="grid gap-1.5 text-sm font-medium text-[var(--text)]">
         <span>Status</span>
-        <select className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm" value={form.status} onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}>
+        <select className={inputCls} value={form.status} onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}>
           <option>Ativo</option>
           <option>Pendente</option>
           <option>Vencido</option>
@@ -290,9 +309,9 @@ function FormFields({
         </select>
       </label>
 
-      <label className="grid gap-2 text-sm font-semibold">
+      <label className="grid gap-1.5 text-sm font-medium text-[var(--text)]">
         <span>Secretaria *</span>
-        <select className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm" value={form.secretariaId} onChange={(e) => setForm((p) => ({ ...p, secretariaId: e.target.value }))}>
+        <select className={inputCls} value={form.secretariaId} onChange={(e) => setForm((p) => ({ ...p, secretariaId: e.target.value }))}>
           <option value="">Selecione</option>
           {secretarias.map((secretaria) => (
             <option key={secretaria.id} value={secretaria.id}>{secretaria.nome}</option>
@@ -300,14 +319,14 @@ function FormFields({
         </select>
       </label>
 
-      <label className="grid gap-2 text-sm font-semibold">
+      <label className="grid gap-1.5 text-sm font-medium text-[var(--text)]">
         <span>Responsável *</span>
-        <input className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm" value={form.responsavel} onChange={(e) => setForm((p) => ({ ...p, responsavel: e.target.value }))} />
+        <input className={inputCls} value={form.responsavel} onChange={(e) => setForm((p) => ({ ...p, responsavel: e.target.value }))} />
       </label>
 
-      <label className="grid gap-2 text-sm font-semibold">
+      <label className="grid gap-1.5 text-sm font-medium text-[var(--text)]">
         <span>Periodicidade *</span>
-        <select className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm" value={form.periodicidade} onChange={(e) => setForm((p) => ({ ...p, periodicidade: e.target.value }))}>
+        <select className={inputCls} value={form.periodicidade} onChange={(e) => setForm((p) => ({ ...p, periodicidade: e.target.value }))}>
           <option>Mensal</option>
           <option>Bimestral</option>
           <option>Semestral</option>
@@ -315,9 +334,9 @@ function FormFields({
         </select>
       </label>
 
-      <label className="grid gap-2 text-sm font-semibold md:col-span-2">
+      <label className="grid gap-1.5 text-sm font-medium text-[var(--text)] md:col-span-2">
         <span>Descrição</span>
-        <textarea className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm" value={form.descricao} onChange={(e) => setForm((p) => ({ ...p, descricao: e.target.value }))} rows={4} />
+        <textarea className={inputCls} value={form.descricao} onChange={(e) => setForm((p) => ({ ...p, descricao: e.target.value }))} rows={4} />
       </label>
     </div>
   );

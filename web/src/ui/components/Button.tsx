@@ -1,22 +1,28 @@
 import React from 'react';
 
-type Variant = 'primary' | 'outline' | 'ghost';
+type Variant = 'primary' | 'outline' | 'ghost' | 'danger';
 
 export function Button(
-  props: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant }
+  props: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; size?: 'sm' | 'md' }
 ) {
-  const { variant = 'ghost', className = '', ...rest } = props;
+  const { variant = 'ghost', size = 'md', className = '', ...rest } = props;
 
   const base =
-    'inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black transition shadow-sm focus-visible:outline-none';
+    'inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-all duration-150 focus-visible:outline-none disabled:opacity-50 disabled:pointer-events-none';
 
-  const styles: Record<Variant, string> = {
-    primary: 'bg-[var(--jardim-green)] text-white hover:opacity-95',
-    outline: 'border border-slate-200 bg-white text-slate-800 hover:bg-slate-50',
-    ghost: 'bg-white text-slate-800 hover:bg-slate-100',
+  const sizes = {
+    sm: 'px-3 py-1.5 text-xs',
+    md: 'px-4 py-2.5 text-sm',
   };
 
-  const computed = `${base} ${styles[variant]} ${className}`;
+  const styles: Record<Variant, string> = {
+    primary: 'bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)] shadow-sm',
+    outline: 'border border-[var(--panel-border)] bg-white text-[var(--text)] hover:bg-slate-50',
+    ghost: 'text-[var(--text-secondary)] hover:bg-slate-100',
+    danger: 'border border-red-200 bg-white text-red-600 hover:bg-red-50',
+  };
+
+  const computed = `${base} ${sizes[size]} ${styles[variant]} ${className}`;
 
   return <button className={computed} {...rest} />;
 }

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { Panel } from '../components/Panel';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
@@ -97,56 +98,58 @@ export default function Secretarias() {
   }
 
   return (
-    <Panel>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="text-xl font-black text-slate-800">Gerenciar Secretarias</div>
-          <div className="mt-1 text-sm text-slate-500">Cadastre e gerencie as secretarias do município</div>
+    <div className="grid gap-5">
+      <Panel>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-bold text-[var(--text)]">Gerenciar Secretarias</h2>
+            <p className="mt-1 text-sm text-[var(--text-muted)]">Cadastre e gerencie as secretarias do município</p>
+          </div>
+          <Button variant="primary" type="button" size="sm" onClick={openNewModal}><Plus className="mr-1.5 h-3.5 w-3.5" />Nova Secretaria</Button>
         </div>
-        <Button variant="primary" type="button" onClick={openNewModal}>+ Nova Secretaria</Button>
-      </div>
 
-      <div className="mt-4 overflow-x-auto">
-        <table className="w-full min-w-[900px] border-separate border-spacing-0">
-          <thead>
-            <tr className="text-left text-xs font-black text-slate-600">
-              <th className="border-b border-slate-200 px-3 py-3">Nome</th>
-              <th className="border-b border-slate-200 px-3 py-3">Sigla</th>
-              <th className="border-b border-slate-200 px-3 py-3">Descrição</th>
-              <th className="border-b border-slate-200 px-3 py-3">Data de Criação</th>
-              <th className="border-b border-slate-200 px-3 py-3">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((it) => (
-              <tr key={it.id} className="text-sm">
-                <td className="border-b border-slate-100 px-3 py-3 font-semibold text-slate-800">{it.nome}</td>
-                <td className="border-b border-slate-100 px-3 py-3 text-slate-500">{it.sigla}</td>
-                <td className="border-b border-slate-100 px-3 py-3 text-slate-500">{it.descricao ?? '-'}</td>
-                <td className="border-b border-slate-100 px-3 py-3 text-slate-500">{it.dataCriacao ?? '-'}</td>
-                <td className="border-b border-slate-100 px-3 py-3">
-                  <div className="flex items-center gap-2">
-                    <button className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-black hover:bg-slate-50" type="button" onClick={() => openEditModal(it)}>Editar</button>
-                    <button className="rounded-xl border border-red-200 px-3 py-2 text-xs font-black text-red-700 hover:bg-red-50" type="button" onClick={() => { void handleDelete(it.id); }}>Excluir</button>
-                  </div>
-                </td>
+        <div className="mt-5 overflow-x-auto">
+          <table className="w-full min-w-[900px] border-separate border-spacing-0">
+            <thead>
+              <tr className="text-left text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                <th className="border-b border-[var(--panel-border)] px-4 py-3">Nome</th>
+                <th className="border-b border-[var(--panel-border)] px-4 py-3">Sigla</th>
+                <th className="border-b border-[var(--panel-border)] px-4 py-3">Descrição</th>
+                <th className="border-b border-[var(--panel-border)] px-4 py-3">Data de Criação</th>
+                <th className="border-b border-[var(--panel-border)] px-4 py-3">Ações</th>
               </tr>
-            ))}
+            </thead>
+            <tbody>
+              {items.map((it) => (
+                <tr key={it.id} className="text-sm transition-colors hover:bg-slate-50">
+                  <td className="border-b border-[var(--panel-border)]/50 px-4 py-3 font-semibold text-[var(--text)]">{it.nome}</td>
+                  <td className="border-b border-[var(--panel-border)]/50 px-4 py-3"><span className="inline-block rounded-md bg-[var(--primary-lighter)] px-2 py-0.5 text-xs font-semibold text-[var(--primary)]">{it.sigla}</span></td>
+                  <td className="border-b border-[var(--panel-border)]/50 px-4 py-3 text-[var(--text-muted)]">{it.descricao ?? '-'}</td>
+                  <td className="border-b border-[var(--panel-border)]/50 px-4 py-3 text-[var(--text-muted)]">{it.dataCriacao ?? '-'}</td>
+                  <td className="border-b border-[var(--panel-border)]/50 px-4 py-3">
+                    <div className="flex items-center gap-1.5">
+                      <button className="grid h-8 w-8 place-items-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--primary-lighter)] hover:text-[var(--primary)]" type="button" title="Editar" onClick={() => openEditModal(it)}><Pencil className="h-4 w-4" /></button>
+                      <button className="grid h-8 w-8 place-items-center rounded-lg text-[var(--text-muted)] transition hover:bg-red-50 hover:text-[var(--danger)]" type="button" title="Excluir" onClick={() => { void handleDelete(it.id); }}><Trash2 className="h-4 w-4" /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
 
-            {!items.length ? (
-              <tr>
-                <td className="px-3 py-10 text-center text-sm text-slate-500" colSpan={5}>
-                  Nenhuma secretaria cadastrada.
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </div>
+              {!items.length ? (
+                <tr>
+                  <td className="px-4 py-12 text-center text-sm text-[var(--text-muted)]" colSpan={5}>
+                    Nenhuma secretaria cadastrada.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
 
       <Modal open={showNew} title="Nova Secretaria" onClose={() => setShowNew(false)}>
         <SecretariaForm form={form} setForm={setForm} />
-        {error ? <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-3 text-sm text-red-800">{error}</div> : null}
+        {error ? <div className="mt-3 rounded-lg border border-[var(--danger)]/30 bg-[var(--danger)]/5 px-3 py-2.5 text-sm text-[var(--danger)]">{error}</div> : null}
         <div className="mt-5 flex items-center justify-end gap-2">
           <Button type="button" variant="outline" onClick={() => setShowNew(false)}>Cancelar</Button>
           <Button type="button" variant="primary" onClick={() => { void handleCreate(); }}>Criar</Button>
@@ -155,13 +158,13 @@ export default function Secretarias() {
 
       <Modal open={showEdit} title="Editar Secretaria" onClose={() => setShowEdit(false)}>
         <SecretariaForm form={form} setForm={setForm} />
-        {error ? <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-3 text-sm text-red-800">{error}</div> : null}
+        {error ? <div className="mt-3 rounded-lg border border-[var(--danger)]/30 bg-[var(--danger)]/5 px-3 py-2.5 text-sm text-[var(--danger)]">{error}</div> : null}
         <div className="mt-5 flex items-center justify-end gap-2">
           <Button type="button" variant="outline" onClick={() => setShowEdit(false)}>Cancelar</Button>
           <Button type="button" variant="primary" onClick={() => { void handleUpdate(); }}>Salvar</Button>
         </div>
       </Modal>
-    </Panel>
+    </div>
   );
 }
 
@@ -172,19 +175,21 @@ function SecretariaForm({
   form: FormState;
   setForm: React.Dispatch<React.SetStateAction<FormState>>;
 }) {
+  const inputCls = 'rounded-lg border border-[var(--panel-border)] bg-white px-3.5 py-2.5 text-sm text-[var(--text)] outline-none transition focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-lighter)]';
+
   return (
-    <div className="mt-4 grid gap-3">
-      <label className="grid gap-2 text-sm font-semibold">
+    <div className="mt-4 grid gap-4">
+      <label className="grid gap-1.5 text-sm font-medium text-[var(--text)]">
         <span>Nome *</span>
-        <input className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm" value={form.nome} onChange={(e) => setForm((p) => ({ ...p, nome: e.target.value }))} />
+        <input className={inputCls} value={form.nome} onChange={(e) => setForm((p) => ({ ...p, nome: e.target.value }))} />
       </label>
-      <label className="grid gap-2 text-sm font-semibold">
+      <label className="grid gap-1.5 text-sm font-medium text-[var(--text)]">
         <span>Sigla *</span>
-        <input className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm uppercase" value={form.sigla} onChange={(e) => setForm((p) => ({ ...p, sigla: e.target.value.toUpperCase() }))} />
+        <input className={`${inputCls} uppercase`} value={form.sigla} onChange={(e) => setForm((p) => ({ ...p, sigla: e.target.value.toUpperCase() }))} />
       </label>
-      <label className="grid gap-2 text-sm font-semibold">
+      <label className="grid gap-1.5 text-sm font-medium text-[var(--text)]">
         <span>Descrição</span>
-        <textarea className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm" value={form.descricao} onChange={(e) => setForm((p) => ({ ...p, descricao: e.target.value }))} rows={3} />
+        <textarea className={inputCls} value={form.descricao} onChange={(e) => setForm((p) => ({ ...p, descricao: e.target.value }))} rows={3} />
       </label>
     </div>
   );

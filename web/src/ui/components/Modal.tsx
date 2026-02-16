@@ -1,4 +1,5 @@
 import React from 'react';
+import { X } from 'lucide-react';
 
 export function Modal({
   open,
@@ -14,19 +15,20 @@ export function Modal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4">
-      <div className="w-full max-w-xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[var(--shadow-md)]">
-        <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
-          <div className="text-lg font-black text-slate-800">{title}</div>
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/40 backdrop-blur-sm p-4">
+      <div className="w-full max-w-xl overflow-hidden rounded-xl border border-[var(--panel-border)] bg-white shadow-[var(--shadow-lg)]">
+        <div className="flex items-center justify-between gap-3 border-b border-[var(--panel-border)] px-6 py-4">
+          <h2 className="text-base font-bold text-[var(--text)]">{title}</h2>
           <button
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-black hover:bg-slate-50"
+            className="grid h-8 w-8 place-items-center rounded-lg text-[var(--text-muted)] hover:bg-slate-100 hover:text-[var(--text)]"
             type="button"
             onClick={onClose}
+            aria-label="Fechar"
           >
-            ✕
+            <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="px-5 py-4">{children}</div>
+        <div className="px-6 py-5">{children}</div>
       </div>
     </div>
   );
