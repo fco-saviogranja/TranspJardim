@@ -78,6 +78,13 @@ function createConfig() {
     localUsers,
     localSessionTtlHours: Number.parseInt(process.env.LOCAL_SESSION_TTL_HOURS ?? '12', 10),
     forceSqlInProduction: String(process.env.FORCE_SQL_IN_PRODUCTION ?? 'true').toLowerCase() !== 'false',
+    smtp: {
+      host: process.env.SMTP_HOST || '',
+      port: Number.parseInt(process.env.SMTP_PORT ?? '587', 10),
+      user: process.env.SMTP_USER || '',
+      pass: process.env.SMTP_PASS || '',
+      from: process.env.SMTP_FROM || process.env.SMTP_USER || '',
+    },
   };
 }
 

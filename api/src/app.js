@@ -4,6 +4,7 @@ const express = require('express');
 const compression = require('compression');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const { sendEmail } = require('./infra/email');
 
 function wrap(fn) {
   return function wrapped(req, res, next) {
@@ -154,6 +155,13 @@ function createApp({ store, auth, config, sqlInfo }) {
   app.get('/api/relatorios', auth.requireAuth, wrap(async (_req, res) => {
     const data = await store.listRelatorios();
     res.status(200).json(data);
+  }));
+
+  // ── E-mail ───────────────────────────────────────────────
+  app.post('/api/alertas/enviar-email', auth.requireAdmin, wrap(async (req, res) => {
+    const { to, subject, text, html } = req.body ?? {};
+    const result = await sendEmail(config.smtp, { to, subject, text, html });
+    res.status(200).json({ ok: true, ...result });
   }));
 
   app.all('/api/*', (_req, res) => {
