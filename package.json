@@ -1,0 +1,21 @@
+{
+  "name": "transpjardim",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "dev": "npm run dev --workspace web",
+    "dev:api": "npm run dev --workspace api",
+    "build": "npm run build --workspace web && npm run copy:web --workspace api",
+    "start": "npm run start --workspace api",
+    "lint": "npm run lint --workspace api && npm run lint --workspace web",
+    "test": "npm run test --workspace api"
+  },
+  "workspaces": [
+    "web",
+    "api"
+  ],
+  "overrides": {
+    "esbuild": "^0.25.0"
+  }
+}

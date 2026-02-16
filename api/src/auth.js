@@ -1,0 +1,242 @@
+const crypto = require('node:crypto');
+const { verifyPassword } = require('./infra/password');
+
+function decodeClientPrincipal(raw) {
+  try {
+    const decoded = Buffer.from(String(raw), 'base64').toString('utf8');
+    return JSON.parse(decoded);
+  } catch (_err) {
+    return null;
+  }
+}
+
+function claimValue(claims, candidates) {
+  for (const key of candidates) {
+    const found = claims.find((claim) => claim.typ === key);
+    if (found?.val) return String(found.val);
+  }
+  return '';
+}
+
+function mapRole(rawRole, adminEmails, email) {
+  const role = String(rawRole ?? '').trim().toLowerCase();
+  if (role) return role;
+  if (email && adminEmails.includes(String(email).toLowerCase())) return 'admin';
+  return 'padrao';
+}
+
+function toPublicUser(user) {
+  if (!user) return null;
+  return {
+    id: user.id,
+    username: user.username,
+    role: user.role,
+    name: user.name,
+    email: user.email,
+    isActive: user.isActive,
+  };
+}
+
+function createAuth({ config, store }) {
+  const localSessions = new Map();
+
+  function issueToken(userId) {
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = Date.now() + config.localSessionTtlHours * 60 * 60 * 1000;
+    localSessions.set(token, { userId, expiresAt });
+    return token;
+  }
+
+  function cleanExpiredSessions() {
+    const now = Date.now();
+    for (const [token, session] of localSessions.entries()) {
+      if (session.expiresAt <= now) localSessions.delete(token);
+    }
+  }
+
+  async function readLocalSession(req) {
+    cleanExpiredSessions();
+    const authHeader = String(req.headers.authorization ?? '');
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length).trim() : '';
+    if (!token) return { authenticated: false, token: null, user: null };
+
+    const session = localSessions.get(token);
+    if (!session) return { authenticated: false, token: null, user: null };
+
+    const user = await store.findUserById(session.userId);
+    if (!user || !user.isActive) {
+      localSessions.delete(token);
+      return { authenticated: false, token: null, user: null };
+    }
+
+    return { authenticated: true, token, user: toPublicUser(user) };
+  }
+
+  async function readEasyAuthSession(req) {
+    const rawPrincipal = req.headers['x-ms-client-principal'];
+    if (!rawPrincipal) return { authenticated: false, user: null };
+
+    const principal = decodeClientPrincipal(rawPrincipal);
+    if (!principal || !Array.isArray(principal.claims)) {
+      return { authenticated: false, user: null };
+    }
+
+    const claims = principal.claims;
+    const email = claimValue(claims, [
+      'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress',
+      'preferred_username',
+      'upn',
+    ]).toLowerCase();
+
+    const username =
+      claimValue(claims, [
+        'preferred_username',
+        'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name',
+      ])
+        .split('@')[0]
+        .toLowerCase() ||
+      email.split('@')[0] ||
+      'usuario';
+
+    const name = claimValue(claims, [
+      'name',
+      'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name',
+    ]) || username;
+
+    const id =
+      claimValue(claims, [
+        'http://schemas.microsoft.com/identity/claims/objectidentifier',
+        'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier',
+        'sub',
+      ]) ||
+      crypto.randomUUID();
+
+    const claimRole = claimValue(claims, [
+      'roles',
+      'http://schemas.microsoft.com/ws/2008/06/identity/claims/role',
+    ]);
+
+    const role = mapRole(claimRole, config.adminEmails, email);
+
+    const persisted = await store.upsertUserFromIdentity({
+      id,
+      username,
+      role,
+      name,
+      email,
+      isActive: true,
+    });
+
+    return {
+      authenticated: true,
+      user: toPublicUser(persisted) || { id, username, role, name, email, isActive: true },
+    };
+  }
+
+  async function resolveAuth(req, _res, next) {
+    try {
+      if (config.authMode === 'easy-auth') {
+        const session = await readEasyAuthSession(req);
+        req.auth = {
+          mode: config.authMode,
+          authenticated: session.authenticated,
+          user: session.user,
+          token: null,
+        };
+        return next();
+      }
+
+      const localSession = await readLocalSession(req);
+      req.auth = {
+        mode: config.authMode,
+        authenticated: localSession.authenticated,
+        user: localSession.user,
+        token: localSession.token,
+      };
+      return next();
+    } catch (err) {
+      return next(err);
+    }
+  }
+
+  function requireAuth(req, res, next) {
+    if (req.auth?.authenticated) return next();
+    return res.status(401).json({
+      error: 'Não autenticado.',
+      mode: config.authMode,
+      loginUrl: config.authMode === 'easy-auth' ? '/.auth/login/aad?post_login_redirect_uri=/' : null,
+    });
+  }
+
+  function requireAdmin(req, res, next) {
+    if (!req.auth?.authenticated) {
+      return res.status(401).json({ error: 'Não autenticado.' });
+    }
+    if (req.auth.user?.role !== 'admin') {
+      return res.status(403).json({ error: 'Acesso restrito a administradores.' });
+    }
+    return next();
+  }
+
+  async function sessionHandler(req, res) {
+    return res.status(200).json({
+      authenticated: Boolean(req.auth?.authenticated),
+      mode: config.authMode,
+      user: req.auth?.authenticated ? req.auth.user : null,
+      token: req.auth?.token ?? null,
+      loginUrl: config.authMode === 'easy-auth' ? '/.auth/login/aad?post_login_redirect_uri=/' : null,
+      logoutUrl: config.authMode === 'easy-auth' ? '/.auth/logout' : null,
+    });
+  }
+
+  async function loginHandler(req, res) {
+    if (config.authMode !== 'local') {
+      return res.status(405).json({ error: 'Login por senha está desabilitado neste ambiente.' });
+    }
+
+    const username = String(req.body?.username ?? '').trim().toLowerCase();
+    const password = String(req.body?.password ?? '').trim();
+
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Usuário e senha são obrigatórios.' });
+    }
+
+    const user = await store.findUserByUsername(username);
+    if (!user || !user.isActive || !user.passwordHash || !verifyPassword(password, user.passwordHash)) {
+      return res.status(401).json({ error: 'Credenciais inválidas.' });
+    }
+
+    const token = issueToken(user.id);
+    return res.status(200).json({
+      user: toPublicUser(user),
+      token,
+    });
+  }
+
+  async function logoutHandler(req, res) {
+    if (config.authMode === 'easy-auth') {
+      return res.status(200).json({
+        ok: true,
+        logoutUrl: '/.auth/logout',
+      });
+    }
+
+    const authHeader = String(req.headers.authorization ?? '');
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length).trim() : '';
+    if (token) localSessions.delete(token);
+    return res.status(200).json({ ok: true });
+  }
+
+  return {
+    resolveAuth,
+    requireAuth,
+    requireAdmin,
+    sessionHandler,
+    loginHandler,
+    logoutHandler,
+  };
+}
+
+module.exports = {
+  createAuth,
+};
