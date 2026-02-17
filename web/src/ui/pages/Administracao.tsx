@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Bell, FileText, Pencil, Plus, Shield, Trash2, Users } from 'lucide-react';
+import { Bell, Building2, FileText, Pencil, Plus, Shield, Trash2, Users } from 'lucide-react';
 import { Panel } from '../components/Panel';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
@@ -37,6 +37,20 @@ type Secretaria = {
   id: string;
   nome: string;
   sigla: string;
+  descricao?: string | null;
+  dataCriacao?: string;
+};
+
+type SecretariaForm = {
+  nome: string;
+  sigla: string;
+  descricao: string;
+};
+
+const emptySecretariaForm: SecretariaForm = {
+  nome: '',
+  sigla: '',
+  descricao: '',
 };
 
 const emptyForm: UsuarioForm = {
@@ -58,6 +72,13 @@ export default function Administracao() {
   const [form, setForm] = useState<UsuarioForm>(emptyForm);
   const [error, setError] = useState('');
   const [secretarias, setSecretarias] = useState<Secretaria[]>([]);
+
+  /* Secretarias state */
+  const [showNewSec, setShowNewSec] = useState(false);
+  const [showEditSec, setShowEditSec] = useState(false);
+  const [selectedSec, setSelectedSec] = useState<Secretaria | null>(null);
+  const [secForm, setSecForm] = useState<SecretariaForm>(emptySecretariaForm);
+  const [secError, setSecError] = useState('');
 
   useEffect(() => {
     Promise.all([
@@ -150,6 +171,61 @@ export default function Administracao() {
     setUsuarios((prev) => prev.filter((user) => user.id !== id));
   }
 
+  /* ── Secretaria CRUD ── */
+  function openNewSecModal() {
+    setSecForm(emptySecretariaForm);
+    setSecError('');
+    setShowNewSec(true);
+  }
+
+  function openEditSecModal(sec: Secretaria) {
+    setSelectedSec(sec);
+    setSecForm({ nome: sec.nome, sigla: sec.sigla, descricao: sec.descricao ?? '' });
+    setSecError('');
+    setShowEditSec(true);
+  }
+
+  async function createSecretaria() {
+    setSecError('');
+    try {
+      const created = await apiJson<Secretaria>('/api/secretarias', {
+        method: 'POST',
+        body: JSON.stringify(secForm),
+      });
+      setSecretarias((prev) => [...prev, created]);
+      setShowNewSec(false);
+    } catch (err) {
+      setSecError(err instanceof Error ? err.message : 'Falha ao criar secretaria.');
+    }
+  }
+
+  async function updateSecretaria() {
+    if (!selectedSec) return;
+    setSecError('');
+    try {
+      const updated = await apiJson<Secretaria>(`/api/secretarias/${selectedSec.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(secForm),
+      });
+      setSecretarias((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+      setShowEditSec(false);
+      setSelectedSec(null);
+    } catch (err) {
+      setSecError(err instanceof Error ? err.message : 'Falha ao atualizar secretaria.');
+    }
+  }
+
+  async function deleteSecretaria(id: string) {
+    if (!confirm('Deseja excluir esta secretaria?')) return;
+    const res = await apiFetch(`/api/secretarias/${id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const payload = (await res.json().catch(() => ({}))) as { error?: string };
+      alert(payload.error ?? 'Falha ao excluir secretaria.');
+      return;
+    }
+    setSecretarias((prev) => prev.filter((s) => s.id !== id));
+  }
+
   return (
     <div className="grid gap-5">
       <div>
@@ -234,6 +310,71 @@ export default function Administracao() {
           <Button type="button" variant="primary" onClick={() => { void updateUsuario(); }}>Salvar</Button>
         </div>
       </Modal>
+
+      {/* ── Secretarias ── */}
+      <Panel>
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-base font-bold text-[var(--text)]">Secretarias</h3>
+          <Button type="button" variant="primary" size="sm" onClick={openNewSecModal}><Plus className="mr-1.5 h-3.5 w-3.5" />Nova Secretaria</Button>
+        </div>
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full min-w-[700px] border-separate border-spacing-0">
+            <thead>
+              <tr className="text-left text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                <th className="border-b border-[var(--panel-border)] px-4 py-3">Nome</th>
+                <th className="border-b border-[var(--panel-border)] px-4 py-3">Sigla</th>
+                <th className="border-b border-[var(--panel-border)] px-4 py-3">Descrição</th>
+                <th className="border-b border-[var(--panel-border)] px-4 py-3">Criação</th>
+                <th className="border-b border-[var(--panel-border)] px-4 py-3">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {secretarias.map((sec) => (
+                <tr key={sec.id} className="text-sm transition-colors hover:bg-slate-50">
+                  <td className="border-b border-[var(--panel-border)]/50 px-4 py-3 font-semibold text-[var(--text)]">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4 shrink-0 text-[var(--info)]" />
+                      {sec.nome}
+                    </div>
+                  </td>
+                  <td className="border-b border-[var(--panel-border)]/50 px-4 py-3">
+                    <span className="inline-block rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-[var(--info)]">{sec.sigla}</span>
+                  </td>
+                  <td className="border-b border-[var(--panel-border)]/50 px-4 py-3 text-[var(--text-muted)]">{sec.descricao || '—'}</td>
+                  <td className="border-b border-[var(--panel-border)]/50 px-4 py-3 text-[var(--text-muted)]">{sec.dataCriacao ?? '—'}</td>
+                  <td className="border-b border-[var(--panel-border)]/50 px-4 py-3">
+                    <div className="flex items-center gap-1.5">
+                      <button className="grid h-8 w-8 place-items-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--primary-lighter)] hover:text-[var(--primary)]" type="button" title="Editar" onClick={() => openEditSecModal(sec)}><Pencil className="h-4 w-4" /></button>
+                      <button className="grid h-8 w-8 place-items-center rounded-lg text-[var(--text-muted)] transition hover:bg-red-50 hover:text-[var(--danger)]" type="button" title="Excluir" onClick={() => { void deleteSecretaria(sec.id); }}><Trash2 className="h-4 w-4" /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {secretarias.length === 0 && (
+                <tr><td colSpan={5} className="px-4 py-6 text-center text-sm text-[var(--text-muted)]">Nenhuma secretaria cadastrada.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+
+      <Modal open={showNewSec} title="Nova Secretaria" onClose={() => setShowNewSec(false)}>
+        <SecretariaFields form={secForm} setForm={setSecForm} />
+        {secError ? <div className="mt-3 rounded-lg border border-[var(--danger)]/30 bg-[var(--danger)]/5 px-3 py-2.5 text-sm text-[var(--danger)]">{secError}</div> : null}
+        <div className="mt-5 flex items-center justify-end gap-2">
+          <Button type="button" variant="outline" onClick={() => setShowNewSec(false)}>Cancelar</Button>
+          <Button type="button" variant="primary" onClick={() => { void createSecretaria(); }}>Criar</Button>
+        </div>
+      </Modal>
+
+      <Modal open={showEditSec} title="Editar Secretaria" onClose={() => setShowEditSec(false)}>
+        <SecretariaFields form={secForm} setForm={setSecForm} />
+        {secError ? <div className="mt-3 rounded-lg border border-[var(--danger)]/30 bg-[var(--danger)]/5 px-3 py-2.5 text-sm text-[var(--danger)]">{secError}</div> : null}
+        <div className="mt-5 flex items-center justify-end gap-2">
+          <Button type="button" variant="outline" onClick={() => setShowEditSec(false)}>Cancelar</Button>
+          <Button type="button" variant="primary" onClick={() => { void updateSecretaria(); }}>Salvar</Button>
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -289,6 +430,33 @@ function UsuarioFields({
           <option value="true">Ativo</option>
           <option value="false">Inativo</option>
         </select>
+      </label>
+    </div>
+  );
+}
+
+function SecretariaFields({
+  form,
+  setForm,
+}: {
+  form: SecretariaForm;
+  setForm: React.Dispatch<React.SetStateAction<SecretariaForm>>;
+}) {
+  const inputCls = 'rounded-lg border border-[var(--panel-border)] bg-white px-3.5 py-2.5 text-sm text-[var(--text)] outline-none transition focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-lighter)]';
+
+  return (
+    <div className="mt-4 grid gap-4 md:grid-cols-2">
+      <label className="grid gap-1.5 text-sm font-medium text-[var(--text)]">
+        <span>Nome *</span>
+        <input className={inputCls} value={form.nome} onChange={(e) => setForm((p) => ({ ...p, nome: e.target.value }))} />
+      </label>
+      <label className="grid gap-1.5 text-sm font-medium text-[var(--text)]">
+        <span>Sigla *</span>
+        <input className={inputCls} value={form.sigla} onChange={(e) => setForm((p) => ({ ...p, sigla: e.target.value.toUpperCase() }))} />
+      </label>
+      <label className="col-span-full grid gap-1.5 text-sm font-medium text-[var(--text)]">
+        <span>Descrição</span>
+        <textarea className={inputCls + ' min-h-[80px] resize-y'} value={form.descricao} onChange={(e) => setForm((p) => ({ ...p, descricao: e.target.value }))} />
       </label>
     </div>
   );
