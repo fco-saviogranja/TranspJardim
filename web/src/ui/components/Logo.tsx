@@ -1,8 +1,10 @@
 import React from 'react';
 
 export function Logo({ size = 36, light = false }: { size?: number; light?: boolean }) {
-  const textColor = light ? '#ffffff' : '#0f172a';
-  const accentColor = '#2563eb';
+  const primary = '#2f6b4f';
+  const accent = '#8fbf6a';
+  const textColor = light ? '#ffffff' : '#1f2937';
+  const strokeColor = light ? '#e7f3ea' : primary;
 
   return (
     <svg
@@ -13,40 +15,28 @@ export function Logo({ size = 36, light = false }: { size?: number; light?: bool
       xmlns="http://www.w3.org/2000/svg"
       aria-label="TranspJardim logo"
     >
-      {/* Shield shape */}
-      <path
-        d="M24 4L6 12v12c0 11.11 7.67 21.47 18 24 10.33-2.53 18-12.89 18-24V12L24 4z"
-        fill={accentColor}
-        opacity="0.12"
-      />
-      <path
-        d="M24 4L6 12v12c0 11.11 7.67 21.47 18 24 10.33-2.53 18-12.89 18-24V12L24 4z"
-        stroke={accentColor}
-        strokeWidth="2"
-        fill="none"
-      />
-      {/* T letter */}
+      {/* Base shape */}
+      <rect x="4" y="4" width="40" height="40" rx="10" fill={primary} opacity="0.12" />
+      <rect x="4" y="4" width="40" height="40" rx="10" stroke={strokeColor} strokeWidth="2" />
+
+      {/* Leaf */}
+      <path d="M30 13c-5 0-9 4-9 9 5 0 9-4 9-9z" fill={accent} />
+      <path d="M21 22c3-2 6-5 9-9" stroke={strokeColor} strokeWidth="1.5" strokeLinecap="round" />
+
+      {/* Road */}
+      <path d="M16 31c4-4 12-4 16 0" stroke={strokeColor} strokeWidth="2" strokeLinecap="round" />
+      <path d="M24 22v11" stroke={strokeColor} strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
+
+      {/* Monogram */}
       <text
-        x="15"
-        y="30"
-        fontFamily="Inter, system-ui, sans-serif"
-        fontSize="18"
-        fontWeight="800"
-        fill={accentColor}
-      >
-        T
-      </text>
-      {/* J letter */}
-      <text
-        x="25"
-        y="30"
-        fontFamily="Inter, system-ui, sans-serif"
-        fontSize="18"
-        fontWeight="800"
+        x="14"
+        y="33"
+        fontFamily="Cinzel, 'Times New Roman', serif"
+        fontSize="12.5"
+        fontWeight="700"
         fill={textColor}
-        opacity="0.7"
       >
-        J
+        TJ
       </text>
     </svg>
   );
