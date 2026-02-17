@@ -3,8 +3,8 @@ import { authStorage } from './authStorage';
 function buildHeaders(init?: RequestInit): Headers {
   const headers = new Headers(init?.headers ?? {});
   const token = authStorage.getToken();
-  if (token && !headers.has('authorization')) {
-    headers.set('authorization', `Bearer ${token}`);
+  if (token && !headers.has('x-auth-token')) {
+    headers.set('x-auth-token', token);
   }
   if (
     init?.body &&

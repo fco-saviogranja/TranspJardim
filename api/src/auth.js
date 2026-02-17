@@ -64,8 +64,13 @@ function createAuth({ config, store }) {
 
   async function readLocalSession(req) {
     cleanExpiredSessions();
-    const authHeader = String(req.headers.authorization ?? '');
-    const token = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length).trim() : '';
+    // Read from X-Auth-Token header (preferred — not intercepted by Easy Auth)
+    // or fall back to Authorization: Bearer for backward compatibility.
+    let token = String(req.headers['x-auth-token'] ?? '').trim();
+    if (!token) {
+      const authHeader = String(req.headers.authorization ?? '');
+      token = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length).trim() : '';
+    }
     if (!token) return { authenticated: false, token: null, user: null };
 
     const session = localSessions.get(token);
@@ -267,8 +272,11 @@ function createAuth({ config, store }) {
       });
     }
 
-    const authHeader = String(req.headers.authorization ?? '');
-    const token = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length).trim() : '';
+    let token = String(req.headers['x-auth-token'] ?? '').trim();
+    if (!token) {
+      const authHeader = String(req.headers.authorization ?? '');
+      token = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length).trim() : '';
+    }
     if (token) localSessions.delete(token);
     return res.status(200).json({ ok: true });
   }
