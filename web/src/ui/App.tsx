@@ -223,16 +223,19 @@ export default function App() {
   }, [refreshSession]);
 
   async function handleLogout() {
-    const res = await apiFetch('/api/auth/logout', { method: 'POST' }).catch(() => null);
-    const payload = res
-      ? ((await res.json().catch(() => ({}))) as { logoutUrl?: string })
-      : undefined;
+    // Fire logout API to clear server-side session (best-effort)
+    apiFetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+
+    // Always clear local storage
     authStorage.clear();
-    if (payload?.logoutUrl) {
-      const base = payload.logoutUrl;
+
+    // In hybrid/easy-auth mode, redirect to Easy Auth logout to clear the
+    // AppServiceAuthSession cookie.  Without this the cookie persists and
+    // the next page load re-authenticates automatically.
+    if (authMode === 'hybrid' || authMode === 'easy-auth') {
       const post = encodeURIComponent(`${window.location.origin}/login`);
-      const joiner = base.includes('?') ? '&' : '?';
-      window.location.href = `${base}${joiner}post_logout_redirect_uri=${post}`;
+      window.location.href = `/.auth/logout?post_logout_redirect_uri=${post}`;
+      return;
     }
   }
 
