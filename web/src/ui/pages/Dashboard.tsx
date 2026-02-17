@@ -84,7 +84,7 @@ export default function Dashboard() {
       </div>
 
       {/* Metric cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {cards.map(({ label, value, icon: Icon, color, bgColor }) => (
           <Panel key={label} className="flex items-start gap-3">
             <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${bgColor}`}>

@@ -57,26 +57,38 @@ function Sidebar({
   collapsed,
   onToggle,
   onLogout,
+  mobileOpen,
+  onClose,
+  onNavigate,
 }: {
   user: User | null;
   collapsed: boolean;
   onToggle: () => void;
   onLogout: () => void;
+  mobileOpen: boolean;
+  onClose: () => void;
+  onNavigate: () => void;
 }) {
   return (
     <aside
-      className={`fixed inset-y-0 left-0 z-40 flex flex-col bg-[var(--sidebar-bg)] transition-all duration-200 ${
-        collapsed ? 'w-[68px]' : 'w-[240px]'
-      }`}
+      className={`fixed inset-y-0 left-0 z-40 flex w-[240px] flex-col bg-[var(--sidebar-bg)] transition-transform duration-200 md:transition-all md:duration-200 ${
+        mobileOpen ? 'translate-x-0' : '-translate-x-full'
+      } md:translate-x-0 ${collapsed ? 'md:w-[68px]' : 'md:w-[240px]'}`}
     >
       {/* Header */}
       <div className="flex h-16 items-center gap-3 border-b border-white/10 px-4">
         <Logo size={32} light />
-        {!collapsed && (
-          <span className="text-base font-bold tracking-tight text-white">
-            TranspJardim
-          </span>
-        )}
+        <span className={`text-base font-bold tracking-tight text-white ${collapsed ? 'md:hidden' : ''}`}>
+          TranspJardim
+        </span>
+        <button
+          onClick={onClose}
+          className="ml-auto grid h-9 w-9 place-items-center rounded-lg text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)] hover:text-white md:hidden"
+          type="button"
+          aria-label="Fechar menu"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </button>
       </div>
 
       {/* Navigation */}
@@ -86,8 +98,9 @@ function Sidebar({
             key={to}
             to={to}
             title={label}
+            onClick={onNavigate}
             className={({ isActive }) =>
-              `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+              `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors md:justify-start ${
                 isActive
                   ? 'bg-[var(--primary)] text-white'
                   : 'text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)] hover:text-white'
@@ -95,15 +108,15 @@ function Sidebar({
             }
           >
             <Icon className="h-[18px] w-[18px] shrink-0" />
-            {!collapsed && <span>{label}</span>}
+            <span className={collapsed ? 'md:hidden' : ''}>{label}</span>
           </NavLink>
         ))}
       </nav>
 
       {/* Footer – user info */}
       <div className="border-t border-white/10 p-3">
-        {!collapsed && user && (
-          <div className="mb-2 px-3">
+        {user && (
+          <div className={`mb-2 px-3 ${collapsed ? 'md:hidden' : ''}`}>
             <div className="truncate text-sm font-semibold text-white">{user.name ?? 'Usuário'}</div>
             <div className="truncate text-xs text-[var(--sidebar-text)]">{user.email ?? ''}</div>
           </div>
@@ -116,12 +129,12 @@ function Sidebar({
             type="button"
           >
             <LogOut className="h-[18px] w-[18px] shrink-0" />
-            {!collapsed && <span>Sair</span>}
+            <span className={collapsed ? 'md:hidden' : ''}>Sair</span>
           </button>
           <button
             onClick={onToggle}
             title={collapsed ? 'Expandir menu' : 'Recolher menu'}
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)] hover:text-white"
+            className="hidden h-8 w-8 shrink-0 place-items-center rounded-lg text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)] hover:text-white md:grid"
             type="button"
           >
             {collapsed ? <Menu className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
@@ -133,7 +146,7 @@ function Sidebar({
 }
 
 /* ─── Top bar ─── */
-function TopBar({ user }: { user: User | null }) {
+function TopBar({ user, onOpenNav }: { user: User | null; onOpenNav: () => void }) {
   const location = useLocation();
 
   const pageTitle = useMemo(() => {
@@ -147,8 +160,16 @@ function TopBar({ user }: { user: User | null }) {
   }, [location.pathname]);
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[var(--panel-border)] bg-white/80 px-6 backdrop-blur-md">
-      <div>
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[var(--panel-border)] bg-white/80 px-4 backdrop-blur-md sm:px-6">
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={onOpenNav}
+          aria-label="Abrir menu"
+          className="grid h-9 w-9 place-items-center rounded-lg text-[var(--text-muted)] hover:bg-slate-100 hover:text-[var(--text)] md:hidden"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
         <h1 className="text-lg font-bold text-[var(--text)]">{pageTitle}</h1>
       </div>
       <div className="flex items-center gap-3">
@@ -167,15 +188,32 @@ function TopBar({ user }: { user: User | null }) {
 /* ─── Shell ─── */
 function Shell({ user, onLogout, children }: { user: User | null; onLogout: () => void; children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <div className="min-h-screen">
-      <Sidebar user={user} collapsed={collapsed} onToggle={() => setCollapsed((p) => !p)} onLogout={onLogout} />
+      {mobileOpen ? (
+        <button
+          type="button"
+          aria-label="Fechar menu"
+          className="fixed inset-0 z-30 bg-black/40 md:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      ) : null}
+      <Sidebar
+        user={user}
+        collapsed={collapsed}
+        onToggle={() => setCollapsed((p) => !p)}
+        onLogout={onLogout}
+        mobileOpen={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        onNavigate={() => setMobileOpen(false)}
+      />
       <div
-        className={`transition-all duration-200 ${collapsed ? 'ml-[68px]' : 'ml-[240px]'}`}
+        className={`transition-all duration-200 ml-0 ${collapsed ? 'md:ml-[68px]' : 'md:ml-[240px]'}`}
       >
-        <TopBar user={user} />
-        <main className="mx-auto w-full max-w-[1200px] p-6">
+        <TopBar user={user} onOpenNav={() => setMobileOpen(true)} />
+        <main className="mx-auto w-full max-w-[1200px] p-4 sm:p-6">
           {children}
         </main>
       </div>

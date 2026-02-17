@@ -233,7 +233,7 @@ export default function Administracao() {
         <p className="mt-1 text-sm text-[var(--text-muted)]">Gerencie usuários, configurações e monitore o sistema</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {overviewCards.map(({ label, value, icon: Icon, color, bg }) => (
           <Panel key={label} className="flex items-start gap-3">
             <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${bg}`}>

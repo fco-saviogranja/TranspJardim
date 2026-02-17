@@ -214,12 +214,12 @@ export default function Alertas() {
       </div>
 
       {/* Tab bar */}
-      <div className="flex w-full rounded-lg border border-[var(--panel-border)] bg-[var(--bg)]">
+      <div className="flex w-full overflow-x-auto rounded-lg border border-[var(--panel-border)] bg-[var(--bg)]">
         {tabs.map((t) => (
           <button
             key={t.key}
             type="button"
-            className={`flex-1 px-4 py-2.5 text-sm font-semibold transition ${
+            className={`flex-none whitespace-nowrap px-4 py-2.5 text-sm font-semibold transition ${
               tab === t.key
                 ? 'bg-white text-[var(--text)] shadow-sm rounded-lg'
                 : 'text-[var(--text-muted)] hover:text-[var(--text)]'
@@ -515,16 +515,22 @@ function RegraFields({
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked ? 'true' : 'false'}
+    <label
       className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors ${checked ? 'bg-[var(--primary)]' : 'bg-slate-300'}`}
       title={checked ? 'Desativar' : 'Ativar'}
-      onClick={() => onChange(!checked)}
     >
-      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`} />
-    </button>
+      <input
+        type="checkbox"
+        className="sr-only"
+        aria-label={checked ? 'Desativar' : 'Ativar'}
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      <span
+        aria-hidden="true"
+        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`}
+      />
+    </label>
   );
 }
 
