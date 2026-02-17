@@ -202,10 +202,9 @@ export default function App() {
       setAuthMode(session.mode ?? 'local');
 
       if (session.authenticated && session.user) {
-        const provider = session.provider ?? null;
         authStorage.setAuth({
           user: session.user,
-          token: provider === 'easy-auth' ? null : (session.token ?? authStorage.getToken()),
+          token: session.token ?? authStorage.getToken() ?? null,
         });
       } else {
         authStorage.clear();

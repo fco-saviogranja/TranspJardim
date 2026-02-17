@@ -213,12 +213,21 @@ function createAuth({ config, store }) {
   }
 
   async function sessionHandler(req, res) {
+    // When authenticated via Easy Auth, issue a local Bearer token so the
+    // frontend can use it for all requests (POST, PUT, DELETE) without
+    // depending on the Easy Auth session cookie (which Azure blocks on
+    // non-GET requests).
+    let token = req.auth?.token ?? null;
+    if (req.auth?.authenticated && req.auth.provider === 'easy-auth' && req.auth.user?.id) {
+      token = issueToken(req.auth.user.id);
+    }
+
     return res.status(200).json({
       authenticated: Boolean(req.auth?.authenticated),
       mode: config.authMode,
       provider: req.auth?.provider ?? null,
       user: req.auth?.authenticated ? req.auth.user : null,
-      token: req.auth?.token ?? null,
+      token,
       loginUrl: easyAuthEnabled() ? '/.auth/login/aad?post_login_redirect_uri=/' : null,
       logoutUrl: req.auth?.provider === 'easy-auth' ? '/.auth/logout' : null,
     });
