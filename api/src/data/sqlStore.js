@@ -28,6 +28,7 @@ function toPublicUser(row) {
     role: row.role,
     name: row.name,
     email: row.email,
+    secretariaId: row.secretariaId ?? null,
     isActive: row.isActive,
     createdAt: row.createdAt,
   };
@@ -54,9 +55,16 @@ async function createSqlStore({ sqlClient, localUsers }) {
           [Name] NVARCHAR(200) NOT NULL,
           Email NVARCHAR(200) NOT NULL CONSTRAINT UQ_Users_Email UNIQUE,
           PasswordHash NVARCHAR(255) NULL,
+          SecretariaId UNIQUEIDENTIFIER NULL,
           IsActive BIT NOT NULL CONSTRAINT DF_Users_IsActive DEFAULT 1,
           CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_Users_CreatedAt DEFAULT SYSUTCDATETIME()
         );
+      END;
+
+      -- Add SecretariaId column to existing tables that lack it
+      IF COL_LENGTH('dbo.Users', 'SecretariaId') IS NULL
+      BEGIN
+        ALTER TABLE dbo.Users ADD SecretariaId UNIQUEIDENTIFIER NULL;
       END;
 
       IF OBJECT_ID('dbo.Secretarias', 'U') IS NULL
@@ -421,15 +429,18 @@ async function createSqlStore({ sqlClient, localUsers }) {
     async listUsuarios() {
       const result = await query(null, `
         SELECT
-          CAST(Id AS NVARCHAR(36)) AS id,
-          Username AS username,
-          [Role] AS role,
-          [Name] AS name,
-          Email AS email,
-          IsActive AS isActive,
-          CONVERT(VARCHAR(33), CreatedAt, 126) AS createdAt
-        FROM dbo.Users
-        ORDER BY [Name] ASC;
+          CAST(u.Id AS NVARCHAR(36)) AS id,
+          u.Username AS username,
+          u.[Role] AS role,
+          u.[Name] AS name,
+          u.Email AS email,
+          CAST(u.SecretariaId AS NVARCHAR(36)) AS secretariaId,
+          s.Nome AS secretariaNome,
+          u.IsActive AS isActive,
+          CONVERT(VARCHAR(33), u.CreatedAt, 126) AS createdAt
+        FROM dbo.Users u
+        LEFT JOIN dbo.Secretarias s ON s.Id = u.SecretariaId
+        ORDER BY u.[Name] ASC;
       `);
       return result.recordset;
     },
@@ -440,6 +451,7 @@ async function createSqlStore({ sqlClient, localUsers }) {
       const email = String(input.email ?? '').trim().toLowerCase();
       const role = normalizeRole(input.role);
       const password = String(input.password ?? '').trim();
+      const secretariaId = input.secretariaId || null;
 
       if (!username || !name || !email) {
         throw Object.assign(new Error('username, name e email são obrigatórios.'), { statusCode: 400 });
@@ -452,17 +464,19 @@ async function createSqlStore({ sqlClient, localUsers }) {
           req.input('name', sql.NVarChar(200), name);
           req.input('email', sql.NVarChar(200), email);
           req.input('passwordHash', sql.NVarChar(255), password ? hashPassword(password) : null);
+          req.input('secretariaId', sql.UniqueIdentifier, secretariaId);
         }, `
-          INSERT INTO dbo.Users (Username, [Role], [Name], Email, PasswordHash)
+          INSERT INTO dbo.Users (Username, [Role], [Name], Email, PasswordHash, SecretariaId)
           OUTPUT
             CAST(INSERTED.Id AS NVARCHAR(36)) AS id,
             INSERTED.Username AS username,
             INSERTED.[Role] AS role,
             INSERTED.[Name] AS name,
             INSERTED.Email AS email,
+            CAST(INSERTED.SecretariaId AS NVARCHAR(36)) AS secretariaId,
             INSERTED.IsActive AS isActive,
             CONVERT(VARCHAR(33), INSERTED.CreatedAt, 126) AS createdAt
-          VALUES (@username, @role, @name, @email, @passwordHash);
+          VALUES (@username, @role, @name, @email, @passwordHash, @secretariaId);
         `);
 
         return result.recordset[0];
@@ -483,6 +497,7 @@ async function createSqlStore({ sqlClient, localUsers }) {
       if (input.role !== undefined) updates.push('[Role] = @role');
       if (input.isActive !== undefined) updates.push('IsActive = @isActive');
       if (input.password !== undefined && String(input.password ?? '').trim()) updates.push('PasswordHash = @passwordHash');
+      if (input.secretariaId !== undefined) updates.push('SecretariaId = @secretariaId');
       if (!updates.length) return this.findUserById(id).then(toPublicUser);
 
       try {
@@ -496,6 +511,7 @@ async function createSqlStore({ sqlClient, localUsers }) {
           if (input.password !== undefined && String(input.password ?? '').trim()) {
             req.input('passwordHash', sql.NVarChar(255), hashPassword(String(input.password)));
           }
+          if (input.secretariaId !== undefined) req.input('secretariaId', sql.UniqueIdentifier, input.secretariaId || null);
         }, `
           UPDATE dbo.Users
           SET ${updates.join(', ')}
@@ -532,6 +548,7 @@ async function createSqlStore({ sqlClient, localUsers }) {
           [Name] AS name,
           Email AS email,
           PasswordHash AS passwordHash,
+          CAST(SecretariaId AS NVARCHAR(36)) AS secretariaId,
           IsActive AS isActive,
           CONVERT(VARCHAR(33), CreatedAt, 126) AS createdAt
         FROM dbo.Users
@@ -549,6 +566,7 @@ async function createSqlStore({ sqlClient, localUsers }) {
           [Name] AS name,
           Email AS email,
           PasswordHash AS passwordHash,
+          CAST(SecretariaId AS NVARCHAR(36)) AS secretariaId,
           IsActive AS isActive,
           CONVERT(VARCHAR(33), CreatedAt, 126) AS createdAt
         FROM dbo.Users
@@ -566,6 +584,7 @@ async function createSqlStore({ sqlClient, localUsers }) {
           [Name] AS name,
           Email AS email,
           PasswordHash AS passwordHash,
+          CAST(SecretariaId AS NVARCHAR(36)) AS secretariaId,
           IsActive AS isActive,
           CONVERT(VARCHAR(33), CreatedAt, 126) AS createdAt
         FROM dbo.Users

@@ -12,6 +12,7 @@ function toPublicUser(user) {
     role: user.role,
     name: user.name,
     email: user.email,
+    secretariaId: user.secretariaId ?? null,
     isActive: user.isActive,
     createdAt: user.createdAt,
   };
@@ -235,6 +236,7 @@ async function createMemoryStore({ localUsers }) {
         name,
         email,
         passwordHash: password ? hashPassword(password) : null,
+        secretariaId: input.secretariaId || null,
         isActive: true,
         createdAt: nowIso(),
       };
@@ -253,6 +255,7 @@ async function createMemoryStore({ localUsers }) {
         email: input.email === undefined ? existing.email : String(input.email ?? '').trim().toLowerCase() || existing.email,
         role: input.role === undefined ? existing.role : normalizeRole(input.role),
         isActive: input.isActive === undefined ? existing.isActive : Boolean(input.isActive),
+        secretariaId: input.secretariaId === undefined ? (existing.secretariaId ?? null) : (input.secretariaId || null),
       };
       if (input.password !== undefined && String(input.password ?? '').trim()) {
         next.passwordHash = hashPassword(String(input.password));

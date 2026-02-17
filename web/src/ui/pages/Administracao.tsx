@@ -18,6 +18,8 @@ type Usuario = {
   role: string;
   name: string;
   email: string;
+  secretariaId: string | null;
+  secretariaNome?: string;
   isActive: boolean;
 };
 
@@ -28,6 +30,13 @@ type UsuarioForm = {
   email: string;
   isActive: boolean;
   password: string;
+  secretariaId: string;
+};
+
+type Secretaria = {
+  id: string;
+  nome: string;
+  sigla: string;
 };
 
 const emptyForm: UsuarioForm = {
@@ -37,6 +46,7 @@ const emptyForm: UsuarioForm = {
   email: '',
   isActive: true,
   password: '',
+  secretariaId: '',
 };
 
 export default function Administracao() {
@@ -47,19 +57,23 @@ export default function Administracao() {
   const [selected, setSelected] = useState<Usuario | null>(null);
   const [form, setForm] = useState<UsuarioForm>(emptyForm);
   const [error, setError] = useState('');
+  const [secretarias, setSecretarias] = useState<Secretaria[]>([]);
 
   useEffect(() => {
     Promise.all([
       apiJson<Overview>('/api/admin/overview'),
       apiJson<{ items: Usuario[] }>('/api/usuarios'),
+      apiJson<{ items: Secretaria[] }>('/api/secretarias'),
     ])
-      .then(([overviewRes, usuariosRes]) => {
+      .then(([overviewRes, usuariosRes, secretariasRes]) => {
         setData(overviewRes);
         setUsuarios(usuariosRes.items ?? []);
+        setSecretarias(secretariasRes.items ?? []);
       })
       .catch(() => {
         setData(null);
         setUsuarios([]);
+        setSecretarias([]);
       });
   }, []);
 
@@ -85,6 +99,7 @@ export default function Administracao() {
       email: user.email,
       isActive: user.isActive,
       password: '',
+      secretariaId: user.secretariaId ?? '',
     });
     setError('');
     setShowEdit(true);
@@ -168,6 +183,7 @@ export default function Administracao() {
                 <th className="border-b border-[var(--panel-border)] px-4 py-3">Nome</th>
                 <th className="border-b border-[var(--panel-border)] px-4 py-3">Username</th>
                 <th className="border-b border-[var(--panel-border)] px-4 py-3">Email</th>
+                <th className="border-b border-[var(--panel-border)] px-4 py-3">Secretaria</th>
                 <th className="border-b border-[var(--panel-border)] px-4 py-3">Perfil</th>
                 <th className="border-b border-[var(--panel-border)] px-4 py-3">Ativo</th>
                 <th className="border-b border-[var(--panel-border)] px-4 py-3">Ações</th>
@@ -179,6 +195,7 @@ export default function Administracao() {
                   <td className="border-b border-[var(--panel-border)]/50 px-4 py-3 font-semibold text-[var(--text)]">{user.name}</td>
                   <td className="border-b border-[var(--panel-border)]/50 px-4 py-3 text-[var(--text-muted)]">{user.username}</td>
                   <td className="border-b border-[var(--panel-border)]/50 px-4 py-3 text-[var(--text-muted)]">{user.email}</td>
+                  <td className="border-b border-[var(--panel-border)]/50 px-4 py-3 text-[var(--text-muted)]">{user.secretariaNome ?? '—'}</td>
                   <td className="border-b border-[var(--panel-border)]/50 px-4 py-3">
                     <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${user.role === 'admin' ? 'bg-purple-50 text-purple-700' : 'bg-slate-100 text-[var(--text-muted)]'}`}>
                       {user.role === 'admin' ? 'Admin' : 'Padrão'}
@@ -201,7 +218,7 @@ export default function Administracao() {
       </Panel>
 
       <Modal open={showNew} title="Novo Usuário" onClose={() => setShowNew(false)}>
-        <UsuarioFields form={form} setForm={setForm} />
+        <UsuarioFields form={form} setForm={setForm} secretarias={secretarias} />
         {error ? <div className="mt-3 rounded-lg border border-[var(--danger)]/30 bg-[var(--danger)]/5 px-3 py-2.5 text-sm text-[var(--danger)]">{error}</div> : null}
         <div className="mt-5 flex items-center justify-end gap-2">
           <Button type="button" variant="outline" onClick={() => setShowNew(false)}>Cancelar</Button>
@@ -210,7 +227,7 @@ export default function Administracao() {
       </Modal>
 
       <Modal open={showEdit} title="Editar Usuário" onClose={() => setShowEdit(false)}>
-        <UsuarioFields form={form} setForm={setForm} />
+        <UsuarioFields form={form} setForm={setForm} secretarias={secretarias} />
         {error ? <div className="mt-3 rounded-lg border border-[var(--danger)]/30 bg-[var(--danger)]/5 px-3 py-2.5 text-sm text-[var(--danger)]">{error}</div> : null}
         <div className="mt-5 flex items-center justify-end gap-2">
           <Button type="button" variant="outline" onClick={() => setShowEdit(false)}>Cancelar</Button>
@@ -224,9 +241,11 @@ export default function Administracao() {
 function UsuarioFields({
   form,
   setForm,
+  secretarias,
 }: {
   form: UsuarioForm;
   setForm: React.Dispatch<React.SetStateAction<UsuarioForm>>;
+  secretarias: Secretaria[];
 }) {
   const inputCls = 'rounded-lg border border-[var(--panel-border)] bg-white px-3.5 py-2.5 text-sm text-[var(--text)] outline-none transition focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-lighter)]';
 
@@ -249,6 +268,15 @@ function UsuarioFields({
         <select className={inputCls} value={form.role} onChange={(e) => setForm((p) => ({ ...p, role: e.target.value }))}>
           <option value="padrao">Padrão</option>
           <option value="admin">Admin</option>
+        </select>
+      </label>
+      <label className="grid gap-1.5 text-sm font-medium text-[var(--text)]">
+        <span>Secretaria</span>
+        <select className={inputCls} value={form.secretariaId} onChange={(e) => setForm((p) => ({ ...p, secretariaId: e.target.value }))}>
+          <option value="">Nenhuma</option>
+          {secretarias.map((s) => (
+            <option key={s.id} value={s.id}>{s.nome} ({s.sigla})</option>
+          ))}
         </select>
       </label>
       <label className="grid gap-1.5 text-sm font-medium text-[var(--text)]">
