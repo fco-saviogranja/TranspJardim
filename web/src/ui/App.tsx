@@ -271,8 +271,14 @@ export default function App() {
     // AppServiceAuthSession cookie.  Without this the cookie persists and
     // the next page load re-authenticates automatically.
     if (authMode === 'hybrid' || authMode === 'easy-auth') {
-      const post = encodeURIComponent('/login');
-      window.location.href = `/.auth/logout?post_logout_redirect_uri=${post}`;
+      try {
+        // Calling logout via fetch clears the Easy Auth cookie without
+        // navigating to a blank Easy Auth page.
+        await fetch('/.auth/logout', { credentials: 'include' });
+      } catch {
+        // best-effort
+      }
+      window.location.href = '/login';
       return;
     }
   }
