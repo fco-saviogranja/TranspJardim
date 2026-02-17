@@ -271,7 +271,7 @@ export default function App() {
     // AppServiceAuthSession cookie.  Without this the cookie persists and
     // the next page load re-authenticates automatically.
     if (authMode === 'hybrid' || authMode === 'easy-auth') {
-      const post = encodeURIComponent(`${window.location.origin}/login`);
+      const post = encodeURIComponent('/login');
       window.location.href = `/.auth/logout?post_logout_redirect_uri=${post}`;
       return;
     }

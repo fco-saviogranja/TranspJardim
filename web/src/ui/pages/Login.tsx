@@ -53,7 +53,7 @@ export default function Login({ authMode, onAuthenticated }: LoginProps) {
   const from = (location.state as { from?: string } | null)?.from ?? '/dashboard';
 
   const safeFrom = from.startsWith('/') && !from.startsWith('//') ? from : '/';
-  const easyAuthRedirectUri = `${window.location.origin}${safeFrom}`;
+  const easyAuthRedirectUri = safeFrom;
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
