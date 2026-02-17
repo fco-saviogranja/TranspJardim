@@ -120,6 +120,46 @@ function createApp({ store, auth, config, sqlInfo }) {
     return res.status(200).json(updated);
   }));
 
+  // ── Regras de Alerta ─────────────────────────────────────
+  app.get('/api/alerta-regras', auth.requireAdmin, wrap(async (_req, res) => {
+    const items = await store.listAlertaRegras();
+    res.status(200).json({ items });
+  }));
+
+  app.post('/api/alerta-regras', auth.requireAdmin, wrap(async (req, res) => {
+    const created = await store.createAlertaRegra(req.body ?? {});
+    res.status(201).json(created);
+  }));
+
+  app.put('/api/alerta-regras/:id', auth.requireAdmin, wrap(async (req, res) => {
+    const updated = await store.updateAlertaRegra(req.params.id, req.body ?? {});
+    if (!updated) return res.status(404).json({ error: 'Regra não encontrada.' });
+    return res.status(200).json(updated);
+  }));
+
+  app.patch('/api/alerta-regras/:id/toggle', auth.requireAdmin, wrap(async (req, res) => {
+    const ok = await store.toggleAlertaRegra(req.params.id, req.body?.ativo === true);
+    if (!ok) return res.status(404).json({ error: 'Regra não encontrada.' });
+    return res.status(200).json({ ok: true });
+  }));
+
+  app.delete('/api/alerta-regras/:id', auth.requireAdmin, wrap(async (req, res) => {
+    const removed = await store.deleteAlertaRegra(req.params.id);
+    if (!removed) return res.status(404).json({ error: 'Regra não encontrada.' });
+    return res.status(204).send();
+  }));
+
+  // ── Configuração de Alertas ──────────────────────────────
+  app.get('/api/alerta-config', auth.requireAdmin, wrap(async (_req, res) => {
+    const config = await store.getAlertaConfig();
+    res.status(200).json(config);
+  }));
+
+  app.put('/api/alerta-config', auth.requireAdmin, wrap(async (req, res) => {
+    const updated = await store.updateAlertaConfig(req.body ?? {});
+    res.status(200).json(updated);
+  }));
+
   app.get('/api/admin/overview', auth.requireAdmin, wrap(async (_req, res) => {
     const data = await store.getAdminOverview();
     res.status(200).json(data);

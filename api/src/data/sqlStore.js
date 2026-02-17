@@ -105,6 +105,44 @@ async function createSqlStore({ sqlClient, localUsers }) {
           CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_Alertas_CreatedAt DEFAULT SYSUTCDATETIME()
         );
       END;
+
+      IF OBJECT_ID('dbo.AlertaRegras', 'U') IS NULL
+      BEGIN
+        CREATE TABLE dbo.AlertaRegras (
+          Id UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_AlertaRegras PRIMARY KEY DEFAULT NEWID(),
+          Nome NVARCHAR(200) NOT NULL,
+          Descricao NVARCHAR(500) NULL,
+          Prioridade NVARCHAR(20) NOT NULL CONSTRAINT DF_AlertaRegras_Prioridade DEFAULT 'media',
+          Ativo BIT NOT NULL CONSTRAINT DF_AlertaRegras_Ativo DEFAULT 1,
+          TriggerTipo NVARCHAR(80) NOT NULL CONSTRAINT DF_AlertaRegras_TriggerTipo DEFAULT 'vencimento',
+          TriggerDias INT NOT NULL CONSTRAINT DF_AlertaRegras_TriggerDias DEFAULT 0,
+          TriggerMeta INT NULL,
+          ApenasDiasUteis BIT NOT NULL CONSTRAINT DF_AlertaRegras_ApenasDiasUteis DEFAULT 1,
+          CanalDashboard BIT NOT NULL CONSTRAINT DF_AlertaRegras_CanalDashboard DEFAULT 1,
+          CanalEmail BIT NOT NULL CONSTRAINT DF_AlertaRegras_CanalEmail DEFAULT 1,
+          CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_AlertaRegras_CreatedAt DEFAULT SYSUTCDATETIME()
+        );
+      END;
+
+      IF OBJECT_ID('dbo.AlertaConfig', 'U') IS NULL
+      BEGIN
+        CREATE TABLE dbo.AlertaConfig (
+          Id INT NOT NULL CONSTRAINT PK_AlertaConfig PRIMARY KEY DEFAULT 1,
+          SistemaAtivo BIT NOT NULL CONSTRAINT DF_AlertaConfig_SistemaAtivo DEFAULT 1,
+          MaxAlertasDia INT NOT NULL CONSTRAINT DF_AlertaConfig_MaxAlertasDia DEFAULT 50,
+          LimpezaDias INT NOT NULL CONSTRAINT DF_AlertaConfig_LimpezaDias DEFAULT 30,
+          ApenasDiasUteis BIT NOT NULL CONSTRAINT DF_AlertaConfig_ApenasDiasUteis DEFAULT 1,
+          EmailObrigatorio BIT NOT NULL CONSTRAINT DF_AlertaConfig_EmailObrigatorio DEFAULT 1,
+          ModoDebug BIT NOT NULL CONSTRAINT DF_AlertaConfig_ModoDebug DEFAULT 0,
+          NotifDashboard BIT NOT NULL CONSTRAINT DF_AlertaConfig_NotifDashboard DEFAULT 1,
+          NotifEmail BIT NOT NULL CONSTRAINT DF_AlertaConfig_NotifEmail DEFAULT 0,
+          NotifPush BIT NOT NULL CONSTRAINT DF_AlertaConfig_NotifPush DEFAULT 0,
+          FrequenciaNotif NVARCHAR(30) NOT NULL CONSTRAINT DF_AlertaConfig_FrequenciaNotif DEFAULT 'imediato',
+          ModoSilencioso BIT NOT NULL CONSTRAINT DF_AlertaConfig_ModoSilencioso DEFAULT 0,
+          CONSTRAINT CK_AlertaConfig_Single CHECK (Id = 1)
+        );
+        INSERT INTO dbo.AlertaConfig (Id) VALUES (1);
+      END;
     `);
 
     const usersCount = await query(null, 'SELECT COUNT(1) AS total FROM dbo.Users;');
@@ -424,6 +462,203 @@ async function createSqlStore({ sqlClient, localUsers }) {
         WHERE Id = @id;
       `);
       return alert.recordset[0] ?? null;
+    },
+
+    // ── Regras de Alerta ───────────────────────────────────
+    async listAlertaRegras() {
+      const result = await query(null, `
+        SELECT
+          CAST(Id AS NVARCHAR(36)) AS id,
+          Nome AS nome,
+          Descricao AS descricao,
+          Prioridade AS prioridade,
+          Ativo AS ativo,
+          TriggerTipo AS triggerTipo,
+          TriggerDias AS triggerDias,
+          TriggerMeta AS triggerMeta,
+          ApenasDiasUteis AS apenasDiasUteis,
+          CanalDashboard AS canalDashboard,
+          CanalEmail AS canalEmail,
+          CONVERT(VARCHAR(33), CreatedAt, 126) AS dataCriacao
+        FROM dbo.AlertaRegras
+        ORDER BY CreatedAt DESC;
+      `);
+      return result.recordset;
+    },
+
+    async createAlertaRegra(input) {
+      const nome = String(input.nome ?? '').trim();
+      const descricao = String(input.descricao ?? '').trim() || null;
+      const prioridade = String(input.prioridade ?? 'media').trim().toLowerCase();
+      const ativo = input.ativo !== false;
+      const triggerTipo = String(input.triggerTipo ?? 'vencimento').trim().toLowerCase();
+      const triggerDias = Number(input.triggerDias ?? 0);
+      const triggerMeta = input.triggerMeta != null ? Number(input.triggerMeta) : null;
+      const apenasDiasUteis = input.apenasDiasUteis !== false;
+      const canalDashboard = input.canalDashboard !== false;
+      const canalEmail = input.canalEmail !== false;
+
+      if (!nome) throw Object.assign(new Error('Nome é obrigatório.'), { statusCode: 400 });
+
+      const result = await query((req) => {
+        req.input('nome', sql.NVarChar(200), nome);
+        req.input('descricao', sql.NVarChar(500), descricao);
+        req.input('prioridade', sql.NVarChar(20), prioridade);
+        req.input('ativo', sql.Bit, ativo);
+        req.input('triggerTipo', sql.NVarChar(80), triggerTipo);
+        req.input('triggerDias', sql.Int, triggerDias);
+        req.input('triggerMeta', sql.Int, triggerMeta);
+        req.input('apenasDiasUteis', sql.Bit, apenasDiasUteis);
+        req.input('canalDashboard', sql.Bit, canalDashboard);
+        req.input('canalEmail', sql.Bit, canalEmail);
+      }, `
+        INSERT INTO dbo.AlertaRegras (Nome, Descricao, Prioridade, Ativo, TriggerTipo, TriggerDias, TriggerMeta, ApenasDiasUteis, CanalDashboard, CanalEmail)
+        OUTPUT
+          CAST(inserted.Id AS NVARCHAR(36)) AS id,
+          inserted.Nome AS nome,
+          inserted.Descricao AS descricao,
+          inserted.Prioridade AS prioridade,
+          inserted.Ativo AS ativo,
+          inserted.TriggerTipo AS triggerTipo,
+          inserted.TriggerDias AS triggerDias,
+          inserted.TriggerMeta AS triggerMeta,
+          inserted.ApenasDiasUteis AS apenasDiasUteis,
+          inserted.CanalDashboard AS canalDashboard,
+          inserted.CanalEmail AS canalEmail,
+          CONVERT(VARCHAR(33), inserted.CreatedAt, 126) AS dataCriacao
+        VALUES (@nome, @descricao, @prioridade, @ativo, @triggerTipo, @triggerDias, @triggerMeta, @apenasDiasUteis, @canalDashboard, @canalEmail);
+      `);
+      return result.recordset[0];
+    },
+
+    async updateAlertaRegra(id, input) {
+      const nome = String(input.nome ?? '').trim();
+      const descricao = String(input.descricao ?? '').trim() || null;
+      const prioridade = String(input.prioridade ?? 'media').trim().toLowerCase();
+      const ativo = input.ativo !== false;
+      const triggerTipo = String(input.triggerTipo ?? 'vencimento').trim().toLowerCase();
+      const triggerDias = Number(input.triggerDias ?? 0);
+      const triggerMeta = input.triggerMeta != null ? Number(input.triggerMeta) : null;
+      const apenasDiasUteis = input.apenasDiasUteis !== false;
+      const canalDashboard = input.canalDashboard !== false;
+      const canalEmail = input.canalEmail !== false;
+
+      if (!nome) throw Object.assign(new Error('Nome é obrigatório.'), { statusCode: 400 });
+
+      const result = await query((req) => {
+        req.input('id', sql.UniqueIdentifier, id);
+        req.input('nome', sql.NVarChar(200), nome);
+        req.input('descricao', sql.NVarChar(500), descricao);
+        req.input('prioridade', sql.NVarChar(20), prioridade);
+        req.input('ativo', sql.Bit, ativo);
+        req.input('triggerTipo', sql.NVarChar(80), triggerTipo);
+        req.input('triggerDias', sql.Int, triggerDias);
+        req.input('triggerMeta', sql.Int, triggerMeta);
+        req.input('apenasDiasUteis', sql.Bit, apenasDiasUteis);
+        req.input('canalDashboard', sql.Bit, canalDashboard);
+        req.input('canalEmail', sql.Bit, canalEmail);
+      }, `
+        UPDATE dbo.AlertaRegras
+        SET Nome = @nome, Descricao = @descricao, Prioridade = @prioridade, Ativo = @ativo,
+            TriggerTipo = @triggerTipo, TriggerDias = @triggerDias, TriggerMeta = @triggerMeta,
+            ApenasDiasUteis = @apenasDiasUteis, CanalDashboard = @canalDashboard, CanalEmail = @canalEmail
+        WHERE Id = @id;
+        SELECT @@ROWCOUNT AS affected;
+      `);
+      if (Number(result.recordset[0]?.affected ?? 0) === 0) return null;
+
+      const row = await query((req) => req.input('id', sql.UniqueIdentifier, id), `
+        SELECT
+          CAST(Id AS NVARCHAR(36)) AS id,
+          Nome AS nome,
+          Descricao AS descricao,
+          Prioridade AS prioridade,
+          Ativo AS ativo,
+          TriggerTipo AS triggerTipo,
+          TriggerDias AS triggerDias,
+          TriggerMeta AS triggerMeta,
+          ApenasDiasUteis AS apenasDiasUteis,
+          CanalDashboard AS canalDashboard,
+          CanalEmail AS canalEmail,
+          CONVERT(VARCHAR(33), CreatedAt, 126) AS dataCriacao
+        FROM dbo.AlertaRegras WHERE Id = @id;
+      `);
+      return row.recordset[0] ?? null;
+    },
+
+    async toggleAlertaRegra(id, ativo) {
+      const result = await query((req) => {
+        req.input('id', sql.UniqueIdentifier, id);
+        req.input('ativo', sql.Bit, ativo);
+      }, `
+        UPDATE dbo.AlertaRegras SET Ativo = @ativo WHERE Id = @id;
+        SELECT @@ROWCOUNT AS affected;
+      `);
+      return Number(result.recordset[0]?.affected ?? 0) > 0;
+    },
+
+    async deleteAlertaRegra(id) {
+      const result = await query((req) => req.input('id', sql.UniqueIdentifier, id), `
+        DELETE FROM dbo.AlertaRegras WHERE Id = @id;
+        SELECT @@ROWCOUNT AS affected;
+      `);
+      return Number(result.recordset[0]?.affected ?? 0) > 0;
+    },
+
+    // ── Configuração de Alertas ────────────────────────────
+    async getAlertaConfig() {
+      const result = await query(null, `
+        SELECT
+          SistemaAtivo AS sistemaAtivo,
+          MaxAlertasDia AS maxAlertasDia,
+          LimpezaDias AS limpezaDias,
+          ApenasDiasUteis AS apenasDiasUteis,
+          EmailObrigatorio AS emailObrigatorio,
+          ModoDebug AS modoDebug,
+          NotifDashboard AS notifDashboard,
+          NotifEmail AS notifEmail,
+          NotifPush AS notifPush,
+          FrequenciaNotif AS frequenciaNotif,
+          ModoSilencioso AS modoSilencioso
+        FROM dbo.AlertaConfig WHERE Id = 1;
+      `);
+      return result.recordset[0] ?? {
+        sistemaAtivo: true,
+        maxAlertasDia: 50,
+        limpezaDias: 30,
+        apenasDiasUteis: true,
+        emailObrigatorio: true,
+        modoDebug: false,
+        notifDashboard: true,
+        notifEmail: false,
+        notifPush: false,
+        frequenciaNotif: 'imediato',
+        modoSilencioso: false,
+      };
+    },
+
+    async updateAlertaConfig(input) {
+      await query((req) => {
+        req.input('sistemaAtivo', sql.Bit, input.sistemaAtivo !== false);
+        req.input('maxAlertasDia', sql.Int, Number(input.maxAlertasDia ?? 50));
+        req.input('limpezaDias', sql.Int, Number(input.limpezaDias ?? 30));
+        req.input('apenasDiasUteis', sql.Bit, input.apenasDiasUteis !== false);
+        req.input('emailObrigatorio', sql.Bit, input.emailObrigatorio !== false);
+        req.input('modoDebug', sql.Bit, input.modoDebug === true);
+        req.input('notifDashboard', sql.Bit, input.notifDashboard !== false);
+        req.input('notifEmail', sql.Bit, input.notifEmail === true);
+        req.input('notifPush', sql.Bit, input.notifPush === true);
+        req.input('frequenciaNotif', sql.NVarChar(30), String(input.frequenciaNotif ?? 'imediato'));
+        req.input('modoSilencioso', sql.Bit, input.modoSilencioso === true);
+      }, `
+        UPDATE dbo.AlertaConfig
+        SET SistemaAtivo = @sistemaAtivo, MaxAlertasDia = @maxAlertasDia, LimpezaDias = @limpezaDias,
+            ApenasDiasUteis = @apenasDiasUteis, EmailObrigatorio = @emailObrigatorio, ModoDebug = @modoDebug,
+            NotifDashboard = @notifDashboard, NotifEmail = @notifEmail, NotifPush = @notifPush,
+            FrequenciaNotif = @frequenciaNotif, ModoSilencioso = @modoSilencioso
+        WHERE Id = 1;
+      `);
+      return this.getAlertaConfig();
     },
 
     async listUsuarios() {

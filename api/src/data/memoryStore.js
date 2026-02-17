@@ -74,6 +74,22 @@ async function createMemoryStore({ localUsers }) {
 
   const alertas = [];
 
+  const alertaRegras = [];
+
+  const alertaConfig = {
+    sistemaAtivo: true,
+    maxAlertasDia: 50,
+    limpezaDias: 30,
+    apenasDiasUteis: true,
+    emailObrigatorio: true,
+    modoDebug: false,
+    notifDashboard: true,
+    notifEmail: false,
+    notifPush: false,
+    frequenciaNotif: 'imediato',
+    modoSilencioso: false,
+  };
+
   return {
     kind: 'memory',
 
@@ -208,6 +224,88 @@ async function createMemoryStore({ localUsers }) {
       if (idx === -1) return null;
       alertas[idx] = { ...alertas[idx], lido: true };
       return alertas[idx];
+    },
+
+    // ── Regras de Alerta ─────────────────────────────────
+    async listAlertaRegras() {
+      return [...alertaRegras];
+    },
+
+    async createAlertaRegra(input) {
+      const nome = String(input.nome ?? '').trim();
+      if (!nome) throw Object.assign(new Error('Nome é obrigatório.'), { statusCode: 400 });
+      const created = {
+        id: `ar-${crypto.randomUUID()}`,
+        nome,
+        descricao: String(input.descricao ?? '').trim() || null,
+        prioridade: String(input.prioridade ?? 'media').trim().toLowerCase(),
+        ativo: input.ativo !== false,
+        triggerTipo: String(input.triggerTipo ?? 'vencimento').trim().toLowerCase(),
+        triggerDias: Number(input.triggerDias ?? 0),
+        triggerMeta: input.triggerMeta != null ? Number(input.triggerMeta) : null,
+        apenasDiasUteis: input.apenasDiasUteis !== false,
+        canalDashboard: input.canalDashboard !== false,
+        canalEmail: input.canalEmail !== false,
+        dataCriacao: nowIso(),
+      };
+      alertaRegras.push(created);
+      return created;
+    },
+
+    async updateAlertaRegra(id, input) {
+      const idx = alertaRegras.findIndex((item) => item.id === id);
+      if (idx === -1) return null;
+      const existing = alertaRegras[idx];
+      alertaRegras[idx] = {
+        ...existing,
+        nome: String(input.nome ?? existing.nome).trim() || existing.nome,
+        descricao: input.descricao === undefined ? existing.descricao : String(input.descricao ?? '').trim() || null,
+        prioridade: input.prioridade ?? existing.prioridade,
+        ativo: input.ativo ?? existing.ativo,
+        triggerTipo: input.triggerTipo ?? existing.triggerTipo,
+        triggerDias: input.triggerDias ?? existing.triggerDias,
+        triggerMeta: input.triggerMeta !== undefined ? input.triggerMeta : existing.triggerMeta,
+        apenasDiasUteis: input.apenasDiasUteis ?? existing.apenasDiasUteis,
+        canalDashboard: input.canalDashboard ?? existing.canalDashboard,
+        canalEmail: input.canalEmail ?? existing.canalEmail,
+      };
+      return alertaRegras[idx];
+    },
+
+    async toggleAlertaRegra(id, ativo) {
+      const idx = alertaRegras.findIndex((item) => item.id === id);
+      if (idx === -1) return false;
+      alertaRegras[idx] = { ...alertaRegras[idx], ativo };
+      return true;
+    },
+
+    async deleteAlertaRegra(id) {
+      const idx = alertaRegras.findIndex((item) => item.id === id);
+      if (idx === -1) return false;
+      alertaRegras.splice(idx, 1);
+      return true;
+    },
+
+    // ── Configuração de Alertas ──────────────────────────
+    async getAlertaConfig() {
+      return { ...alertaConfig };
+    },
+
+    async updateAlertaConfig(input) {
+      Object.assign(alertaConfig, {
+        sistemaAtivo: input.sistemaAtivo !== false,
+        maxAlertasDia: Number(input.maxAlertasDia ?? alertaConfig.maxAlertasDia),
+        limpezaDias: Number(input.limpezaDias ?? alertaConfig.limpezaDias),
+        apenasDiasUteis: input.apenasDiasUteis !== false,
+        emailObrigatorio: input.emailObrigatorio !== false,
+        modoDebug: input.modoDebug === true,
+        notifDashboard: input.notifDashboard !== false,
+        notifEmail: input.notifEmail === true,
+        notifPush: input.notifPush === true,
+        frequenciaNotif: String(input.frequenciaNotif ?? alertaConfig.frequenciaNotif),
+        modoSilencioso: input.modoSilencioso === true,
+      });
+      return { ...alertaConfig };
     },
 
     async listUsuarios() {
