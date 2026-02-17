@@ -309,7 +309,11 @@ async function createMemoryStore({ localUsers }) {
       if (existing) {
         existing.name = identity.name || existing.name;
         existing.username = identity.username || existing.username;
-        existing.role = identity.role || existing.role;
+        const existingRole = String(existing.role ?? '').trim().toLowerCase() || 'padrao';
+        const incomingRole = String(identity.role ?? '').trim().toLowerCase();
+        if (existingRole !== 'admin' && incomingRole === 'admin') {
+          existing.role = 'admin';
+        }
         return toPublicUser(existing);
       }
 

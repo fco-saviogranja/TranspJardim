@@ -579,10 +579,13 @@ async function createSqlStore({ sqlClient, localUsers }) {
 
       const existing = await this.findUserByEmail(identity.email);
       if (existing) {
+        const existingRole = String(existing.role ?? '').trim().toLowerCase() || 'padrao';
+        const incomingRole = String(identity.role ?? '').trim().toLowerCase();
+        const nextRole = existingRole === 'admin' ? 'admin' : (incomingRole === 'admin' ? 'admin' : existingRole);
         await this.updateUsuario(existing.id, {
           username: identity.username || existing.username,
           name: identity.name || existing.name,
-          role: identity.role || existing.role,
+          role: nextRole,
           isActive: true,
         });
         const updated = await this.findUserByEmail(identity.email);

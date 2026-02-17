@@ -120,3 +120,29 @@ test('supports secretaria and criterio CRUD', async () => {
     .set('Authorization', `Bearer ${token}`);
   assert.equal(deleted.status, 204);
 });
+
+test('does not downgrade admin role on identity upsert', async () => {
+  const store = await createMemoryStore({
+    localUsers: [],
+  });
+
+  const first = await store.upsertUserFromIdentity({
+    id: 'id-1',
+    username: 'dev',
+    role: 'admin',
+    name: 'Dev',
+    email: 'dev@example.com',
+    isActive: true,
+  });
+  assert.equal(first.role, 'admin');
+
+  const second = await store.upsertUserFromIdentity({
+    id: 'id-1',
+    username: 'dev',
+    role: 'padrao',
+    name: 'Dev',
+    email: 'dev@example.com',
+    isActive: true,
+  });
+  assert.equal(second.role, 'admin');
+});
