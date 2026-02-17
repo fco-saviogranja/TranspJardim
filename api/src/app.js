@@ -210,6 +210,15 @@ function createApp({ store, auth, config, sqlInfo }) {
   });
 
   const publicDir = path.join(__dirname, '..', 'public');
+
+  // Avoid clients getting stuck on stale bundles: never cache the SPA entry.
+  // Hashed assets can still be cached safely.
+  app.use((req, res, next) => {
+    if (req.method === 'GET' && (req.path === '/' || req.path === '/index.html')) {
+      res.setHeader('Cache-Control', 'no-store');
+    }
+    next();
+  });
   app.use(express.static(publicDir));
 
   app.get('*', (_req, res) => {
@@ -219,6 +228,7 @@ function createApp({ store, auth, config, sqlInfo }) {
         .status(404)
         .send('Front-end não encontrado. Rode o build do web (npm run build) para gerar api/public.');
     }
+    res.setHeader('Cache-Control', 'no-store');
     return res.sendFile(indexPath);
   });
 
