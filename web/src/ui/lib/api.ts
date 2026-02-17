@@ -17,9 +17,15 @@ function buildHeaders(init?: RequestInit): Headers {
 }
 
 export async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
+  const token = authStorage.getToken();
   const res = await fetch(path, {
     ...init,
     headers: buildHeaders(init),
+    // When we have a Bearer token, omit cookies so Azure Easy Auth does not
+    // intercept the request (it blocks POST/PUT/DELETE with 403 when the
+    // AppServiceAuthSession cookie is present).  Without a token we need
+    // same-origin so the Easy Auth cookie flows on GET /api/auth/session.
+    credentials: token ? 'omit' : 'same-origin',
   });
 
   if (res.status === 401) {
