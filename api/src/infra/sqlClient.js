@@ -1,7 +1,17 @@
 const sql = require('mssql');
 
+function readSqlConnectionString(explicit) {
+  return (
+    explicit ||
+    process.env.AZURE_SQL_CONNECTION_STRING ||
+    process.env.SQLCONNSTR_AZURE_SQL_CONNECTION_STRING ||
+    process.env.CUSTOMCONNSTR_AZURE_SQL_CONNECTION_STRING ||
+    ''
+  );
+}
+
 function getConnectionStringInfo(connectionString) {
-  const cs = connectionString || process.env.AZURE_SQL_CONNECTION_STRING;
+  const cs = readSqlConnectionString(connectionString);
   if (!cs) return { configured: false };
   return {
     configured: true,
@@ -10,7 +20,7 @@ function getConnectionStringInfo(connectionString) {
 }
 
 function createSqlClient(connectionString) {
-  const cs = connectionString || process.env.AZURE_SQL_CONNECTION_STRING;
+  const cs = readSqlConnectionString(connectionString);
   let poolPromise = null;
 
   async function getPool() {

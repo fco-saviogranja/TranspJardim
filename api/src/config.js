@@ -6,6 +6,15 @@ function parseCommaList(value) {
     .filter(Boolean);
 }
 
+function readSqlConnectionString() {
+  return (
+    process.env.AZURE_SQL_CONNECTION_STRING ||
+    process.env.SQLCONNSTR_AZURE_SQL_CONNECTION_STRING ||
+    process.env.CUSTOMCONNSTR_AZURE_SQL_CONNECTION_STRING ||
+    ''
+  );
+}
+
 function normalizeLocalUsers(entries) {
   if (!Array.isArray(entries)) return [];
   return entries
@@ -73,7 +82,7 @@ function createConfig() {
     nodeEnv,
     isProduction,
     authMode,
-    sqlConnectionString: process.env.AZURE_SQL_CONNECTION_STRING,
+    sqlConnectionString: readSqlConnectionString(),
     adminEmails: parseCommaList(process.env.ADMIN_EMAILS),
     localUsers,
     localSessionTtlHours: Number.parseInt(process.env.LOCAL_SESSION_TTL_HOURS ?? '12', 10),
