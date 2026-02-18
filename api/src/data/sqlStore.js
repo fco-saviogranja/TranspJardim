@@ -1020,28 +1020,106 @@ async function createSqlStore({ sqlClient, localUsers }) {
     },
 
     async getDashboardMetrics() {
+      // ── totais gerais ──
       const result = await query(null, `
         SELECT
           COUNT(1) AS totalCriterios,
           SUM(CASE WHEN Status IN ('Concluído', 'Concluido') THEN 1 ELSE 0 END) AS criteriosConcluidos,
+          SUM(CASE WHEN Status = 'Ativo'    THEN 1 ELSE 0 END) AS ativos,
+          SUM(CASE WHEN Status = 'Inativo'  THEN 1 ELSE 0 END) AS inativos,
           SUM(CASE WHEN Status = 'Pendente' THEN 1 ELSE 0 END) AS pendentes,
-          SUM(CASE WHEN Status = 'Vencido' THEN 1 ELSE 0 END) AS vencidos
+          SUM(CASE WHEN Status = 'Vencido'  THEN 1 ELSE 0 END) AS vencidos
         FROM dbo.Criterios;
       `);
 
-      const alertas = await query(null, `
-        SELECT COUNT(1) AS total
-        FROM dbo.Alertas
-        WHERE Lido = 0;
+      // ── por secretaria ──
+      const porSec = await query(null, `
+        SELECT
+          COALESCE(s.Sigla, 'S/Sec') AS sigla,
+          COALESCE(s.Nome,  'Sem secretaria') AS secretaria,
+          COUNT(1) AS total,
+          SUM(CASE WHEN c.Status IN ('Concluído','Concluido') THEN 1 ELSE 0 END) AS concluidos,
+          SUM(CASE WHEN c.Status = 'Ativo'    THEN 1 ELSE 0 END) AS ativos,
+          SUM(CASE WHEN c.Status = 'Pendente' THEN 1 ELSE 0 END) AS pendentes,
+          SUM(CASE WHEN c.Status = 'Vencido'  THEN 1 ELSE 0 END) AS vencidos
+        FROM dbo.Criterios c
+        LEFT JOIN dbo.Secretarias s ON s.Id = c.SecretariaId
+        GROUP BY COALESCE(s.Sigla,'S/Sec'), COALESCE(s.Nome,'Sem secretaria')
+        ORDER BY total DESC;
+      `);
+
+      // ── alertas vencidos e urgentes (≤15 dias) baseados em ciclo ──
+      const hoje = new Date();
+      const alertasCiclo = await query(null, `
+        SELECT
+          c.Id         AS id,
+          c.Nome       AS nome,
+          c.Periodicidade AS periodicidade,
+          COALESCE(s.Sigla, '') AS sigla,
+          COALESCE(als.Situacao, 'pendente') AS situacao
+        FROM dbo.Criterios c
+        LEFT JOIN dbo.Secretarias s ON s.Id = c.SecretariaId
+        LEFT JOIN dbo.AlertasSituacao als
+          ON als.CriterioId = c.Id
+          AND als.CicloRef = (
+            CASE c.Periodicidade
+              WHEN 'Mensal'        THEN FORMAT(GETDATE(),'yyyy-MM')
+              WHEN 'Bimestral'     THEN CONCAT(YEAR(GETDATE()),'-B',CEILING(MONTH(GETDATE())/2.0))
+              WHEN 'Trimestral'    THEN CONCAT(YEAR(GETDATE()),'-T',CEILING(MONTH(GETDATE())/3.0))
+              WHEN 'Quadrimestral' THEN CONCAT(YEAR(GETDATE()),'-Q',CEILING(MONTH(GETDATE())/4.0))
+              WHEN 'Semestral'     THEN CONCAT(YEAR(GETDATE()),'-S',CEILING(MONTH(GETDATE())/6.0))
+              ELSE CAST(YEAR(GETDATE()) AS VARCHAR)
+            END
+          )
+        WHERE c.Status = 'Ativo'
+          AND COALESCE(als.Situacao,'pendente') <> 'ok';
+      `);
+
+      // calcula dias restantes no lado JS (reutilizando calcularVencimentoCiclo)
+      const agora = new Date();
+      let alertasVencidos = 0;
+      let alertasUrgentes = 0; // ≤ 15 dias
+      for (const r of alertasCiclo.recordset) {
+        const cicloRef = calcularCicloRef(r.periodicidade, agora);
+        const venc = calcularVencimentoCiclo(r.periodicidade, cicloRef);
+        if (!venc) continue;
+        const dias = Math.ceil((venc - agora) / 86400000);
+        if (dias < 0)  alertasVencidos++;
+        else if (dias <= 15) alertasUrgentes++;
+      }
+
+      // ── periodicidades ──
+      const perRes = await query(null, `
+        SELECT Periodicidade AS per, COUNT(1) AS total
+        FROM dbo.Criterios
+        WHERE Status = 'Ativo'
+        GROUP BY Periodicidade
+        ORDER BY total DESC;
       `);
 
       const row = result.recordset[0] ?? {};
       return {
-        totalCriterios: Number(row.totalCriterios ?? 0),
+        totalCriterios:      Number(row.totalCriterios ?? 0),
         criteriosConcluidos: Number(row.criteriosConcluidos ?? 0),
-        pendentes: Number(row.pendentes ?? 0),
-        vencidos: Number(row.vencidos ?? 0),
-        alertasAtivos: Number(alertas.recordset[0]?.total ?? 0),
+        ativos:              Number(row.ativos ?? 0),
+        inativos:            Number(row.inativos ?? 0),
+        pendentes:           Number(row.pendentes ?? 0),
+        vencidos:            Number(row.vencidos ?? 0),
+        alertasVencidos,
+        alertasUrgentes,
+        porSecretaria: porSec.recordset.map((r) => ({
+          sigla:      r.sigla,
+          secretaria: r.secretaria,
+          total:      Number(r.total ?? 0),
+          concluidos: Number(r.concluidos ?? 0),
+          ativos:     Number(r.ativos ?? 0),
+          pendentes:  Number(r.pendentes ?? 0),
+          vencidos:   Number(r.vencidos ?? 0),
+        })),
+        porPeriodicidade: perRes.recordset.map((r) => ({
+          periodicidade: r.per,
+          total: Number(r.total ?? 0),
+        })),
       };
     },
 
