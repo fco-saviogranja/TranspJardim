@@ -38,7 +38,32 @@ function toPublicUser(user) {
 }
 
 function createAuth({ config, store }) {
-  const localSessions = new Map();
+  // --- Tokens HMAC assinados (stateless — sobrevivem a reinicializações) ---
+  // Formato: <base64url(payload)>.<hmac-sha256>
+  // payload: { uid, exp } onde exp = Unix timestamp em segundos
+  const TOKEN_SECRET = config.tokenSecret || 'transpjardim-default-secret-change-me';
+
+  function signPayload(payload) {
+    const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url');
+    const sig = crypto.createHmac('sha256', TOKEN_SECRET).update(encoded).digest('base64url');
+    return `${encoded}.${sig}`;
+  }
+
+  function verifyToken(raw) {
+    if (!raw || typeof raw !== 'string') return null;
+    const parts = raw.split('.');
+    if (parts.length !== 2) return null;
+    const [encoded, sig] = parts;
+    const expected = crypto.createHmac('sha256', TOKEN_SECRET).update(encoded).digest('base64url');
+    if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+    try {
+      const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'));
+      if (typeof payload.exp === 'number' && Date.now() / 1000 > payload.exp) return null;
+      return payload;
+    } catch {
+      return null;
+    }
+  }
 
   function easyAuthEnabled() {
     return config.authMode === 'easy-auth' || config.authMode === 'hybrid';
@@ -49,40 +74,27 @@ function createAuth({ config, store }) {
   }
 
   function issueToken(userId) {
-    const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = Date.now() + config.localSessionTtlHours * 60 * 60 * 1000;
-    localSessions.set(token, { userId, expiresAt });
-    return token;
-  }
-
-  function cleanExpiredSessions() {
-    const now = Date.now();
-    for (const [token, session] of localSessions.entries()) {
-      if (session.expiresAt <= now) localSessions.delete(token);
-    }
+    const exp = Math.floor(Date.now() / 1000) + config.localSessionTtlHours * 3600;
+    return signPayload({ uid: userId, exp });
   }
 
   async function readLocalSession(req) {
-    cleanExpiredSessions();
     // Read from X-Auth-Token header (preferred — not intercepted by Easy Auth)
     // or fall back to Authorization: Bearer for backward compatibility.
-    let token = String(req.headers['x-auth-token'] ?? '').trim();
-    if (!token) {
+    let raw = String(req.headers['x-auth-token'] ?? '').trim();
+    if (!raw) {
       const authHeader = String(req.headers.authorization ?? '');
-      token = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length).trim() : '';
+      raw = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length).trim() : '';
     }
-    if (!token) return { authenticated: false, token: null, user: null };
+    if (!raw) return { authenticated: false, token: null, user: null };
 
-    const session = localSessions.get(token);
-    if (!session) return { authenticated: false, token: null, user: null };
+    const payload = verifyToken(raw);
+    if (!payload?.uid) return { authenticated: false, token: null, user: null };
 
-    const user = await store.findUserById(session.userId);
-    if (!user || !user.isActive) {
-      localSessions.delete(token);
-      return { authenticated: false, token: null, user: null };
-    }
+    const user = await store.findUserById(payload.uid);
+    if (!user || !user.isActive) return { authenticated: false, token: null, user: null };
 
-    return { authenticated: true, token, user: toPublicUser(user) };
+    return { authenticated: true, token: raw, user: toPublicUser(user) };
   }
 
   async function readEasyAuthSession(req) {

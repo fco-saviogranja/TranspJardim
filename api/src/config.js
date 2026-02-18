@@ -86,6 +86,7 @@ function createConfig() {
     adminEmails: parseCommaList(process.env.ADMIN_EMAILS),
     localUsers,
     localSessionTtlHours: Number.parseInt(process.env.LOCAL_SESSION_TTL_HOURS ?? '12', 10),
+    tokenSecret: process.env.TOKEN_SECRET || process.env.SESSION_SECRET || '',
     forceSqlInProduction: String(process.env.FORCE_SQL_IN_PRODUCTION ?? 'true').toLowerCase() !== 'false',
     smtp: {
       host: process.env.SMTP_HOST || '',
