@@ -581,7 +581,7 @@ async function createSqlStore({ sqlClient, localUsers }) {
       hoje.setUTCHours(0, 0, 0, 0);
 
       // Deduplica por criterioId (prefere manual se houver duplicata)
-      const seen = new Map<string, typeof result.recordset[0]>();
+      const seen = new Map();
       for (const row of result.recordset) {
         const prev = seen.get(row.criterioId);
         if (!prev || Number(row.isManual) > Number(prev.isManual)) {
