@@ -192,21 +192,10 @@ function ProfileModal({
     setSaving(true);
     setError(null);
     try {
-      const token = authStorage.getToken();
-      const res = await fetch('/api/perfil', {
+      const updated = await apiJson<Partial<User>>('/api/perfil', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'X-Auth-Token': token } : {}),
-        },
-        credentials: 'include',
         body: JSON.stringify({ name: name.trim(), phone: phone.trim() || null, avatarUrl }),
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({})) as { error?: string };
-        throw new Error(data.error ?? `Erro ${res.status}`);
-      }
-      const updated = await res.json() as Partial<User>;
       onSaved(updated);
       onClose();
     } catch (err) {
