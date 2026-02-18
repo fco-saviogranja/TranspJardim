@@ -84,8 +84,9 @@ function Sidebar({
       {/* Header */}
       <div className="flex h-16 items-center gap-3 border-b border-white/10 px-4">
         <Logo size={32} light />
-        <span className={`text-base font-bold tracking-tight text-white ${collapsed ? 'md:hidden' : ''}`}>
-          TranspJardim
+        <span className={`text-base font-bold tracking-tight ${collapsed ? 'md:hidden' : ''}`}>
+          <span className="text-white">Transp</span>
+          <span className="text-[var(--primary-lighter)]">Jardim</span>
         </span>
         <button
           onClick={onClose}

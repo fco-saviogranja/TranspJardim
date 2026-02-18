@@ -643,7 +643,7 @@ function AlertaCard({
 
   return (
     <div className={`rounded-xl border-l-4 bg-white p-4 shadow-sm ${borderColor}`}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-bold text-[var(--text)]">{item.nome}</span>
@@ -672,13 +672,13 @@ function AlertaCard({
             <p className="mt-0.5 text-[10px] text-[var(--text-muted)]">por {item.atualizadoPor}</p>
           )}
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
           {!isOk && (
             <button
               type="button"
               disabled={disabled}
               onClick={onOk}
-              className="flex items-center gap-1.5 rounded-lg border border-[var(--success)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--success)] transition hover:bg-emerald-50 disabled:opacity-50"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[var(--success)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--success)] transition hover:bg-emerald-50 disabled:opacity-50 sm:flex-none"
             >
               <CheckCircle2 className="h-3.5 w-3.5" />Está OK
             </button>
@@ -688,7 +688,7 @@ function AlertaCard({
               type="button"
               disabled={disabled}
               onClick={onEmProducao}
-              className="flex items-center gap-1.5 rounded-lg border border-amber-400 bg-white px-3 py-1.5 text-xs font-semibold text-amber-600 transition hover:bg-amber-50 disabled:opacity-50"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-amber-400 bg-white px-3 py-1.5 text-xs font-semibold text-amber-600 transition hover:bg-amber-50 disabled:opacity-50 sm:flex-none"
             >
               <Wrench className="h-3.5 w-3.5" />Em Produção
             </button>
@@ -698,7 +698,7 @@ function AlertaCard({
               type="button"
               disabled={disabled}
               onClick={onPendente}
-              className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-[var(--text-muted)] transition hover:bg-slate-50 disabled:opacity-50"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-[var(--text-muted)] transition hover:bg-slate-50 disabled:opacity-50 sm:flex-none"
             >
               Desfazer
             </button>
