@@ -178,7 +178,7 @@ function createApp({ store, auth, config, sqlInfo }) {
   }));
 
   // ── Configuração de Alertas ──────────────────────────────
-  app.get('/api/alerta-config', auth.requireAdmin, wrap(async (_req, res) => {
+  app.get('/api/alerta-config', auth.requireAuth, wrap(async (_req, res) => {
     const config = await store.getAlertaConfig();
     res.status(200).json(config);
   }));
