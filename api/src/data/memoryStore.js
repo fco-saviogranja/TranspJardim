@@ -500,8 +500,8 @@ async function createMemoryStore({ localUsers }) {
 
       const existing = users.find((user) => user.email === identity.email);
       if (existing) {
-        existing.name = identity.name || existing.name;
-        existing.username = identity.username || existing.username;
+        existing.name = existing.name || identity.name;
+        existing.username = existing.username || identity.username;
         const existingRole = String(existing.role ?? '').trim().toLowerCase() || 'padrao';
         const incomingRole = String(identity.role ?? '').trim().toLowerCase();
         if (existingRole !== 'admin' && incomingRole === 'admin') {

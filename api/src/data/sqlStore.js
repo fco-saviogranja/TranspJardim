@@ -1150,8 +1150,8 @@ async function createSqlStore({ sqlClient, localUsers }) {
         const incomingRole = String(identity.role ?? '').trim().toLowerCase();
         const nextRole = existingRole === 'admin' ? 'admin' : (incomingRole === 'admin' ? 'admin' : existingRole);
         await this.updateUsuario(existing.id, {
-          username: identity.username || existing.username,
-          name: identity.name || existing.name,
+          username: existing.username || identity.username,
+          name: existing.name || identity.name,
           role: nextRole,
           isActive: true,
         });
