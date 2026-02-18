@@ -516,6 +516,7 @@ async function createSqlStore({ sqlClient, localUsers }) {
     // ── Alertas por Critério (vencidos + próximos 15 dias + manuais) ─
     async listAlertasCriterios() {
       const result = await query(null, `
+        -- Busca critérios com alerta automático (ciclo atual) OU alerta manual pendente
         SELECT
           CAST(c.Id AS NVARCHAR(36)) AS criterioId,
           c.Nome AS nome,
@@ -529,30 +530,66 @@ async function createSqlStore({ sqlClient, localUsers }) {
           sa.AtualizadoPor AS atualizadoPor,
           ISNULL(CAST(sa.Id AS NVARCHAR(36)), '') AS situacaoId,
           sa.CicloRef AS cicloRef,
-          ISNULL(sa.Prioridade, NULL) AS prioridadeManual,
+          sa.Prioridade AS prioridadeManual,
           ISNULL(sa.IsManual, 0) AS isManual
         FROM dbo.Criterios c
         LEFT JOIN dbo.Secretarias s ON c.SecretariaId = s.Id
+        -- JOIN pelo ciclo atual calculado
         LEFT JOIN dbo.AlertasSituacao sa
           ON sa.CriterioId = c.Id
           AND sa.CicloRef = (
             CASE c.Periodicidade
-              WHEN 'Mensal'       THEN FORMAT(GETUTCDATE(), 'yyyy-MM')
-              WHEN 'Bimestral'    THEN CAST(YEAR(GETUTCDATE()) AS NVARCHAR(4)) + '-B' + CAST(CEILING(MONTH(GETUTCDATE()) / 2.0) AS NVARCHAR(2))
-              WHEN 'Trimestral'   THEN CAST(YEAR(GETUTCDATE()) AS NVARCHAR(4)) + '-T' + CAST(CEILING(MONTH(GETUTCDATE()) / 3.0) AS NVARCHAR(2))
+              WHEN 'Mensal'        THEN FORMAT(GETUTCDATE(), 'yyyy-MM')
+              WHEN 'Bimestral'     THEN CAST(YEAR(GETUTCDATE()) AS NVARCHAR(4)) + '-B' + CAST(CEILING(MONTH(GETUTCDATE()) / 2.0) AS NVARCHAR(2))
+              WHEN 'Trimestral'    THEN CAST(YEAR(GETUTCDATE()) AS NVARCHAR(4)) + '-T' + CAST(CEILING(MONTH(GETUTCDATE()) / 3.0) AS NVARCHAR(2))
               WHEN 'Quadrimestral' THEN CAST(YEAR(GETUTCDATE()) AS NVARCHAR(4)) + '-Q' + CAST(CEILING(MONTH(GETUTCDATE()) / 4.0) AS NVARCHAR(2))
-              WHEN 'Semestral'    THEN CAST(YEAR(GETUTCDATE()) AS NVARCHAR(4)) + '-S' + CAST(CEILING(MONTH(GETUTCDATE()) / 6.0) AS NVARCHAR(2))
+              WHEN 'Semestral'     THEN CAST(YEAR(GETUTCDATE()) AS NVARCHAR(4)) + '-S' + CAST(CEILING(MONTH(GETUTCDATE()) / 6.0) AS NVARCHAR(2))
               ELSE CAST(YEAR(GETUTCDATE()) AS NVARCHAR(4))
             END
           )
         WHERE c.Status = 'Ativo'
-        ORDER BY s.Nome ASC, c.Nome ASC;
+
+        UNION
+
+        -- Também inclui critérios com alerta manual ativo (qualquer cicloRef), não resolvidos
+        SELECT
+          CAST(c.Id AS NVARCHAR(36)) AS criterioId,
+          c.Nome AS nome,
+          c.Periodicidade AS periodicidade,
+          c.Responsavel AS responsavel,
+          CAST(s.Id AS NVARCHAR(36)) AS secretariaId,
+          s.Nome AS secretariaNome,
+          CONVERT(VARCHAR(33), c.UpdatedAt, 126) AS ultimaAtualizacao,
+          sa.Situacao AS situacao,
+          sa.Observacao AS observacao,
+          sa.AtualizadoPor AS atualizadoPor,
+          CAST(sa.Id AS NVARCHAR(36)) AS situacaoId,
+          sa.CicloRef AS cicloRef,
+          sa.Prioridade AS prioridadeManual,
+          1 AS isManual
+        FROM dbo.AlertasSituacao sa
+        INNER JOIN dbo.Criterios c ON sa.CriterioId = c.Id
+        LEFT JOIN dbo.Secretarias s ON c.SecretariaId = s.Id
+        WHERE sa.IsManual = 1
+          AND sa.Situacao != 'ok'
+          AND c.Status = 'Ativo'
+
+        ORDER BY secretariaNome ASC, nome ASC;
       `);
 
       const hoje = new Date();
       hoje.setUTCHours(0, 0, 0, 0);
 
-      return result.recordset.map((row) => {
+      // Deduplica por criterioId (prefere manual se houver duplicata)
+      const seen = new Map<string, typeof result.recordset[0]>();
+      for (const row of result.recordset) {
+        const prev = seen.get(row.criterioId);
+        if (!prev || Number(row.isManual) > Number(prev.isManual)) {
+          seen.set(row.criterioId, row);
+        }
+      }
+
+      return Array.from(seen.values()).map((row) => {
         const vencimento = calcularVencimentoCiclo(row.periodicidade, hoje);
         const diffMs = vencimento.getTime() - hoje.getTime();
         const diffDias = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
@@ -574,8 +611,8 @@ async function createSqlStore({ sqlClient, localUsers }) {
           prioridade: prioridadeFinal,
           isManual: Boolean(row.isManual),
         };
-      // Inclui: alertas com prazo relevante (urgente/vencido) OU qualquer alerta manual ativo (não resolvido)
-      }).filter((r) => r.prioridade !== 'normal' || (r.isManual && r.situacao !== 'ok'));
+      // Inclui: alertas auto urgente/vencido OU alertas manuais ativos
+      }).filter((r) => r.prioridade !== 'normal' || r.isManual);
     },
 
     async gerarAlertaManual({ criterioId, cicloRef, prioridade, geradoPor }) {
