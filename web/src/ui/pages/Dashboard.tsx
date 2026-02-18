@@ -81,19 +81,19 @@ function StatCard({
   badge?: string; badgeColor?: string;
 }) {
   return (
-    <Panel className="flex items-start gap-4">
-      <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl ${iconBg}`}>
-        <Icon className={`h-6 w-6 ${iconColor}`} />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-start justify-between gap-2">
-          <span className="text-xs font-semibold text-[var(--text-muted)]">{label}</span>
-          {badge && (
-            <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold ${badgeColor}`}>{badge}</span>
-          )}
+    <Panel className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${iconBg}`}>
+          <Icon className={`h-4.5 w-4.5 h-[18px] w-[18px] ${iconColor}`} />
         </div>
-        <div className="mt-1 text-3xl font-extrabold leading-none text-[var(--text)]">{value}</div>
-        {sub && <div className="mt-1 text-xs text-[var(--text-muted)]">{sub}</div>}
+        {badge && (
+          <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${badgeColor}`}>{badge}</span>
+        )}
+      </div>
+      <div>
+        <div className="text-xs font-semibold text-[var(--text-muted)]">{label}</div>
+        <div className="mt-0.5 text-2xl font-extrabold leading-none text-[var(--text)]">{value}</div>
+        {sub && <div className="mt-1 text-[11px] text-[var(--text-muted)]">{sub}</div>}
       </div>
     </Panel>
   );
@@ -243,7 +243,7 @@ export default function Dashboard() {
       )}
 
       {/* ── Cards de métricas ── */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
         <StatCard label="Total de Critérios" value={loading ? '…' : total}
           sub="cadastrados no PNTP" icon={FileText}
           iconBg="bg-[var(--primary-lighter)]" iconColor="text-[var(--primary)]" />
