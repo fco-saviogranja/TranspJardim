@@ -311,9 +311,9 @@ export default function Dashboard() {
         </p>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {EIXOS_PNTP.map(({ id, label, icon: Icon, cor }) => (
-            <div key={id} className="flex flex-col gap-2 rounded-xl border border-[var(--panel-border)] p-3">
-              <div className={`grid h-8 w-8 place-items-center rounded-lg ${cor}`}>
-                <Icon className="h-4 w-4 text-white" />
+            <div key={id} className="flex flex-col items-center gap-2 rounded-xl border border-[var(--panel-border)] p-4 text-center">
+              <div className={`grid h-10 w-10 place-items-center rounded-xl ${cor}`}>
+                <Icon className="h-5 w-5 text-white" />
               </div>
               <p className="text-xs font-semibold leading-tight text-[var(--text)]">{label}</p>
             </div>
