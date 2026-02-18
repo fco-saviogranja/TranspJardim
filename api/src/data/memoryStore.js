@@ -76,6 +76,8 @@ async function createMemoryStore({ localUsers }) {
 
   const alertas = [];
 
+  const alertasSituacao = [];
+
   const alertaRegras = [];
 
   const alertaConfig = {
@@ -228,7 +230,74 @@ async function createMemoryStore({ localUsers }) {
       return alertas[idx];
     },
 
-    // ── Regras de Alerta ─────────────────────────────────
+    // ── Alertas por Critério (manual/auto) ────────────────
+    async listAlertasCriterios() {
+      const hoje = new Date();
+      hoje.setUTCHours(0, 0, 0, 0);
+      return criterios
+        .filter((c) => String(c.status ?? '').toLowerCase() !== 'inativo')
+        .map((c) => {
+          const vencimento = new Date(hoje);
+          vencimento.setUTCMonth(vencimento.getUTCMonth() + 1);
+          const diffDias = Math.ceil((vencimento.getTime() - hoje.getTime()) / 86400000);
+          let prioridade = 'normal';
+          if (diffDias < 0) prioridade = 'vencido';
+          else if (diffDias <= 15) prioridade = 'urgente';
+          const cicloRef = hoje.toISOString().slice(0, 7);
+          const situacaoObj = alertasSituacao ? alertasSituacao.find(
+            (s) => s.criterioId === c.id && s.cicloRef === cicloRef,
+          ) : null;
+          return {
+            criterioId: c.id,
+            nome: c.nome,
+            periodicidade: c.periodicidade,
+            responsavel: c.responsavel,
+            secretariaId: c.secretariaId,
+            secretariaNome: c.secretaria,
+            ultimaAtualizacao: c.updatedAt || c.dataCriacao,
+            situacao: situacaoObj?.situacao ?? 'pendente',
+            observacao: situacaoObj?.observacao ?? null,
+            atualizadoPor: situacaoObj?.atualizadoPor ?? null,
+            situacaoId: situacaoObj?.id ?? '',
+            cicloRef,
+            vencimento: vencimento.toISOString().slice(0, 10),
+            diasRestantes: diffDias,
+            prioridade: situacaoObj?.prioridade || prioridade,
+            isManual: Boolean(situacaoObj?.isManual),
+          };
+        })
+        .filter((r) => r.prioridade !== 'normal' || r.situacao !== 'ok' || r.isManual);
+    },
+
+    async upsertAlertaSituacao({ criterioId, cicloRef, situacao, observacao, atualizadoPor }) {
+      if (!alertasSituacao) return { ok: true };
+      const idx = alertasSituacao.findIndex(
+        (s) => s.criterioId === criterioId && s.cicloRef === cicloRef,
+      );
+      if (idx >= 0) {
+        alertasSituacao[idx] = { ...alertasSituacao[idx], situacao, observacao: observacao ?? null, atualizadoPor, updatedAt: nowIso() };
+      } else {
+        alertasSituacao.push({ id: `as-${crypto.randomUUID()}`, criterioId, cicloRef, situacao, observacao: observacao ?? null, atualizadoPor, isManual: false, prioridade: null, updatedAt: nowIso() });
+      }
+      return { ok: true };
+    },
+
+    async gerarAlertaManual({ criterioId, cicloRef, prioridade, geradoPor }) {
+      if (!alertasSituacao) return { ok: true };
+      const prios = ['vencido', 'urgente', 'normal'];
+      const prio = prios.includes(prioridade) ? prioridade : 'urgente';
+      const idx = alertasSituacao.findIndex(
+        (s) => s.criterioId === criterioId && s.cicloRef === cicloRef,
+      );
+      if (idx >= 0) {
+        alertasSituacao[idx] = { ...alertasSituacao[idx], situacao: 'pendente', prioridade: prio, isManual: true, atualizadoPor: geradoPor, updatedAt: nowIso() };
+      } else {
+        alertasSituacao.push({ id: `as-${crypto.randomUUID()}`, criterioId, cicloRef, situacao: 'pendente', prioridade: prio, isManual: true, atualizadoPor: geradoPor, updatedAt: nowIso() });
+      }
+      return { ok: true };
+    },
+
+
     async listAlertaRegras() {
       return [...alertaRegras];
     },

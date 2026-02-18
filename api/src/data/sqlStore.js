@@ -125,6 +125,18 @@ async function createSqlStore({ sqlClient, localUsers }) {
         ALTER TABLE dbo.Users ADD AvatarUrl NVARCHAR(MAX) NULL;
       END;
 
+      -- Add Prioridade column to AlertasSituacao if missing
+      IF COL_LENGTH('dbo.AlertasSituacao', 'Prioridade') IS NULL
+      BEGIN
+        ALTER TABLE dbo.AlertasSituacao ADD Prioridade NVARCHAR(20) NULL;
+      END;
+
+      -- Add IsManual column to AlertasSituacao if missing
+      IF COL_LENGTH('dbo.AlertasSituacao', 'IsManual') IS NULL
+      BEGIN
+        ALTER TABLE dbo.AlertasSituacao ADD IsManual BIT NOT NULL CONSTRAINT DF_AlertasSituacao_IsManual DEFAULT 0;
+      END;
+
       IF OBJECT_ID('dbo.Secretarias', 'U') IS NULL
       BEGIN
         CREATE TABLE dbo.Secretarias (
@@ -501,9 +513,8 @@ async function createSqlStore({ sqlClient, localUsers }) {
       return Number(result.recordset[0]?.affected ?? 0) > 0;
     },
 
-    // ── Alertas por Critério (vencidos + próximos 15 dias) ─
+    // ── Alertas por Critério (vencidos + próximos 15 dias + manuais) ─
     async listAlertasCriterios() {
-      // Calcula cicloRef: prefixo YYYY-MM para o ciclo atual com base na periodicidade
       const result = await query(null, `
         SELECT
           CAST(c.Id AS NVARCHAR(36)) AS criterioId,
@@ -517,7 +528,9 @@ async function createSqlStore({ sqlClient, localUsers }) {
           sa.Observacao AS observacao,
           sa.AtualizadoPor AS atualizadoPor,
           ISNULL(CAST(sa.Id AS NVARCHAR(36)), '') AS situacaoId,
-          sa.CicloRef AS cicloRef
+          sa.CicloRef AS cicloRef,
+          ISNULL(sa.Prioridade, NULL) AS prioridadeManual,
+          ISNULL(sa.IsManual, 0) AS isManual
         FROM dbo.Criterios c
         LEFT JOIN dbo.Secretarias s ON c.SecretariaId = s.Id
         LEFT JOIN dbo.AlertasSituacao sa
@@ -540,25 +553,62 @@ async function createSqlStore({ sqlClient, localUsers }) {
       hoje.setUTCHours(0, 0, 0, 0);
 
       return result.recordset.map((row) => {
-        // Calcula data de vencimento do ciclo atual
         const vencimento = calcularVencimentoCiclo(row.periodicidade, hoje);
         const diffMs = vencimento.getTime() - hoje.getTime();
         const diffDias = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
         const cicloRef = calcularCicloRef(row.periodicidade, hoje);
 
+        // Prioridade automática por prazo
         let prioridade = 'normal';
         if (diffDias < 0) prioridade = 'vencido';
         else if (diffDias <= 15) prioridade = 'urgente';
+
+        // Se houver alerta manual com prioridade explícita, usa ela
+        const prioridadeFinal = row.prioridadeManual || prioridade;
 
         return {
           ...row,
           cicloRef: row.cicloRef || cicloRef,
           vencimento: vencimento.toISOString().slice(0, 10),
           diasRestantes: diffDias,
-          prioridade,
+          prioridade: prioridadeFinal,
+          isManual: Boolean(row.isManual),
         };
-      }).filter((r) => r.prioridade !== 'normal' || r.situacao !== 'ok');
+      // Inclui no resultado: alertas com prazo relevante OU alertas manuais pendentes
+      }).filter((r) => r.prioridade !== 'normal' || r.situacao !== 'ok' || r.isManual);
     },
+
+    async gerarAlertaManual({ criterioId, cicloRef, prioridade, geradoPor }) {
+      const prios = ['vencido', 'urgente', 'normal'];
+      const prio = prios.includes(prioridade) ? prioridade : 'urgente';
+
+      const upd = await query((req) => {
+        req.input('criterioId', sql.UniqueIdentifier, criterioId);
+        req.input('cicloRef', sql.NVarChar(20), cicloRef);
+        req.input('prioridade', sql.NVarChar(20), prio);
+        req.input('atualizadoPor', sql.NVarChar(200), geradoPor || null);
+      }, `
+        UPDATE dbo.AlertasSituacao
+        SET Situacao = 'pendente', Prioridade = @prioridade, IsManual = 1, AtualizadoPor = @atualizadoPor, UpdatedAt = SYSUTCDATETIME()
+        WHERE CriterioId = @criterioId AND CicloRef = @cicloRef;
+        SELECT @@ROWCOUNT AS affected;
+      `);
+
+      if (Number(upd.recordset[0]?.affected ?? 0) === 0) {
+        await query((req) => {
+          req.input('criterioId', sql.UniqueIdentifier, criterioId);
+          req.input('cicloRef', sql.NVarChar(20), cicloRef);
+          req.input('prioridade', sql.NVarChar(20), prio);
+          req.input('atualizadoPor', sql.NVarChar(200), geradoPor || null);
+        }, `
+          INSERT INTO dbo.AlertasSituacao (CriterioId, CicloRef, Situacao, Prioridade, IsManual, AtualizadoPor)
+          VALUES (@criterioId, @cicloRef, 'pendente', @prioridade, 1, @atualizadoPor);
+        `);
+      }
+
+      return { ok: true };
+    },
+
 
     async upsertAlertaSituacao({ criterioId, cicloRef, situacao, observacao, atualizadoPor }) {
       const sits = ['pendente', 'ok', 'em_producao'];

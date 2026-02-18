@@ -120,6 +120,17 @@ function createApp({ store, auth, config, sqlInfo }) {
     res.status(200).json({ items });
   }));
 
+  // Gera alerta manual para um critério
+  app.post('/api/alertas/criterios/gerar', auth.requireAuth, wrap(async (req, res) => {
+    const { criterioId, cicloRef, prioridade } = req.body ?? {};
+    if (!criterioId || !cicloRef || !prioridade) {
+      return res.status(400).json({ error: 'criterioId, cicloRef e prioridade são obrigatórios.' });
+    }
+    const geradoPor = req.auth?.user?.name || req.auth?.user?.username || 'desconhecido';
+    const result = await store.gerarAlertaManual({ criterioId, cicloRef, prioridade, geradoPor });
+    return res.status(200).json(result);
+  }));
+
   // Responsável informa situação de um alerta de critério
   app.patch('/api/alertas/criterios/situacao', auth.requireAuth, wrap(async (req, res) => {
     const { criterioId, cicloRef, situacao, observacao } = req.body ?? {};

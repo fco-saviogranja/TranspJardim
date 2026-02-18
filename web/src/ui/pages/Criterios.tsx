@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle, ChevronDown, Download, Filter, Pencil, Plus, Search, Trash2, Users } from 'lucide-react';
+import { Bell, CheckCircle, ChevronDown, Download, Filter, Pencil, Plus, Search, Trash2, Users } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
@@ -40,6 +40,13 @@ type FormState = {
   descricao: string;
 };
 
+type AlertaStatus = {
+  situacao: 'pendente' | 'ok' | 'em_producao';
+  prioridade: string;
+  isManual: boolean;
+  cicloRef: string;
+};
+
 const emptyForm: FormState = {
   nome: '',
   status: 'Ativo',
@@ -48,6 +55,20 @@ const emptyForm: FormState = {
   periodicidade: 'Mensal',
   descricao: '',
 };
+
+function calcularCicloRefFront(periodicidade: string): string {
+  const today = new Date();
+  const y = today.getUTCFullYear();
+  const m = today.getUTCMonth() + 1;
+  switch (periodicidade) {
+    case 'Mensal':       return `${y}-${String(m).padStart(2, '0')}`;
+    case 'Bimestral':    return `${y}-B${Math.ceil(m / 2)}`;
+    case 'Trimestral':   return `${y}-T${Math.ceil(m / 3)}`;
+    case 'Quadrimestral':return `${y}-Q${Math.ceil(m / 4)}`;
+    case 'Semestral':    return `${y}-S${Math.ceil(m / 6)}`;
+    default:             return String(y);
+  }
+}
 
 function exportXlsx(items: Criterio[]) {
   const rows = items.map((item) => ({
@@ -62,7 +83,6 @@ function exportXlsx(items: Criterio[]) {
 
   const ws = XLSX.utils.json_to_sheet(rows);
 
-  // Largura das colunas
   ws['!cols'] = [
     { wch: 8 },  // ID
     { wch: 50 }, // Nome
@@ -93,6 +113,12 @@ export default function Criterios() {
   const [error, setError] = useState('');
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
+  // Estado dos alertas por critério
+  const [alertasMap, setAlertasMap] = useState<Record<string, AlertaStatus>>({});
+  const [gerarAlertaItem, setGerarAlertaItem] = useState<Criterio | null>(null);
+  const [tipoAlerta, setTipoAlerta] = useState<'urgente' | 'vencido'>('urgente');
+  const [gerandoAlerta, setGerandoAlerta] = useState(false);
+
   function toggleGroup(key: string) {
     setExpandedGroups((prev) => {
       const next = new Set(prev);
@@ -100,6 +126,18 @@ export default function Criterios() {
       else next.add(key);
       return next;
     });
+  }
+
+  function loadAlertas() {
+    apiJson<{ items: { criterioId: string; situacao: 'pendente' | 'ok' | 'em_producao'; prioridade: string; isManual: boolean; cicloRef: string }[] }>('/api/alertas/criterios')
+      .then((res) => {
+        const map: Record<string, AlertaStatus> = {};
+        for (const a of res.items ?? []) {
+          map[a.criterioId] = { situacao: a.situacao, prioridade: a.prioridade, isManual: Boolean(a.isManual), cicloRef: a.cicloRef };
+        }
+        setAlertasMap(map);
+      })
+      .catch(() => {/* silencia — não é crítico */});
   }
 
   useEffect(() => {
@@ -118,6 +156,8 @@ export default function Criterios() {
         setSecretarias([]);
         setUsuarios([]);
       });
+
+    loadAlertas();
   }, []);
 
   const filtered = useMemo(() => {
@@ -141,7 +181,6 @@ export default function Criterios() {
       map.get(key)!.items.push(it);
     }
 
-    // Ordena os grupos: secretarias conhecidas em ordem alfabética, "Sem Secretaria" por último
     return [...map.values()].sort((a, b) => {
       if (!a.id) return 1;
       if (!b.id) return -1;
@@ -223,6 +262,24 @@ export default function Criterios() {
     }
   }
 
+  async function handleGerarAlerta() {
+    if (!gerarAlertaItem) return;
+    setGerandoAlerta(true);
+    try {
+      const cicloRef = calcularCicloRefFront(gerarAlertaItem.periodicidade);
+      await apiJson('/api/alertas/criterios/gerar', {
+        method: 'POST',
+        body: JSON.stringify({ criterioId: gerarAlertaItem.id, cicloRef, prioridade: tipoAlerta }),
+      });
+      setGerarAlertaItem(null);
+      loadAlertas();
+    } catch {
+      alert('Erro ao gerar alerta. Tente novamente.');
+    } finally {
+      setGerandoAlerta(false);
+    }
+  }
+
   function exportCsv() {
     exportXlsx(filtered);
   }
@@ -236,6 +293,40 @@ export default function Criterios() {
     };
     return map[s] ?? 'bg-slate-100 text-[var(--text-muted)]';
   };
+
+  function AlertaBadge({ id }: { id: string }) {
+    const a = alertasMap[id];
+    if (!a) return null;
+    if (a.situacao === 'ok') {
+      return <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-[var(--success)]"><CheckCircle className="h-3 w-3" />Resolvido</span>;
+    }
+    if (a.situacao === 'em_producao') {
+      return <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">Em Análise</span>;
+    }
+    if (a.isManual || a.prioridade === 'vencido' || a.prioridade === 'urgente') {
+      return (
+        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${a.prioridade === 'vencido' ? 'bg-red-50 text-[var(--danger)]' : 'bg-orange-50 text-orange-700'}`}>
+          <Bell className="h-3 w-3" />{a.prioridade === 'vencido' ? 'Vencido' : 'Alerta'}
+        </span>
+      );
+    }
+    return null;
+  }
+
+  function BellButton({ it }: { it: Criterio }) {
+    const a = alertasMap[it.id];
+    const isResolved = a?.situacao === 'ok';
+    return (
+      <button
+        className={`grid h-8 w-8 place-items-center rounded-lg transition ${isResolved ? 'text-[var(--success)] hover:bg-emerald-50' : 'text-[var(--text-muted)] hover:bg-orange-50 hover:text-orange-600'}`}
+        type="button"
+        title="Gerar alerta"
+        onClick={() => { setTipoAlerta('urgente'); setGerarAlertaItem(it); }}
+      >
+        <Bell className="h-4 w-4" />
+      </button>
+    );
+  }
 
   return (
     <div className="grid gap-4 sm:gap-5">
@@ -332,12 +423,14 @@ export default function Criterios() {
                         <div className="mt-1.5 flex flex-wrap items-center gap-2">
                           <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusBadge(it.status)}`}>{it.status}</span>
                           <span className="text-xs text-[var(--text-muted)]">{it.periodicidade}</span>
+                          <AlertaBadge id={it.id} />
                         </div>
                         {it.responsavel && (
                           <p className="mt-1 text-xs text-[var(--text-muted)]">Resp.: {it.responsavel}</p>
                         )}
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
+                        <BellButton it={it} />
                         {isAdmin ? (
                           <>
                             <button className="grid h-9 w-9 place-items-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--primary-lighter)] hover:text-[var(--primary)]" type="button" title="Editar" onClick={() => openEditModal(it)}><Pencil className="h-4 w-4" /></button>
@@ -368,6 +461,7 @@ export default function Criterios() {
                     <th className="border-b border-[var(--panel-border)] px-4 py-3">Status</th>
                     <th className="border-b border-[var(--panel-border)] px-4 py-3">Periodicidade</th>
                     <th className="border-b border-[var(--panel-border)] px-4 py-3">Responsável</th>
+                    <th className="border-b border-[var(--panel-border)] px-4 py-3">Alerta</th>
                     <th className="border-b border-[var(--panel-border)] px-4 py-3">Ações</th>
                   </tr>
                 </thead>
@@ -381,7 +475,11 @@ export default function Criterios() {
                       <td className="border-b border-[var(--panel-border)]/50 px-4 py-3 text-[var(--text-muted)]">{it.periodicidade}</td>
                       <td className="border-b border-[var(--panel-border)]/50 px-4 py-3 text-[var(--text-muted)]">{it.responsavel}</td>
                       <td className="border-b border-[var(--panel-border)]/50 px-4 py-3">
+                        <AlertaBadge id={it.id} />
+                      </td>
+                      <td className="border-b border-[var(--panel-border)]/50 px-4 py-3">
                         <div className="flex items-center gap-1.5">
+                          <BellButton it={it} />
                           {isAdmin ? (
                             <>
                               <button className="grid h-8 w-8 place-items-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--primary-lighter)] hover:text-[var(--primary)]" type="button" title="Editar" onClick={() => openEditModal(it)}><Pencil className="h-4 w-4" /></button>
@@ -430,6 +528,52 @@ export default function Criterios() {
           <Button type="button" variant="primary" onClick={() => { void handleUpdate(); }}>Salvar</Button>
         </div>
       </Modal>
+
+      <Modal open={!!gerarAlertaItem} title="Gerar Alerta" onClose={() => setGerarAlertaItem(null)}>
+        {gerarAlertaItem && (
+          <>
+            <p className="text-sm text-[var(--text-muted)]">
+              Você está gerando um alerta para o critério <strong className="text-[var(--text)]">{gerarAlertaItem.nome}</strong>.
+              Selecione o tipo de alerta:
+            </p>
+            <div className="mt-4 grid gap-3">
+              <label className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 p-4 transition ${tipoAlerta === 'urgente' ? 'border-orange-400 bg-orange-50' : 'border-[var(--panel-border)] hover:border-orange-200'}`}>
+                <input
+                  type="radio"
+                  name="tipoAlerta"
+                  className="mt-0.5 accent-orange-500"
+                  checked={tipoAlerta === 'urgente'}
+                  onChange={() => setTipoAlerta('urgente')}
+                />
+                <div>
+                  <p className="text-sm font-semibold text-orange-700">Próximo do vencimento</p>
+                  <p className="mt-0.5 text-xs text-[var(--text-muted)]">O prazo está se aproximando e a equipe deve ser alertada com antecedência.</p>
+                </div>
+              </label>
+              <label className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 p-4 transition ${tipoAlerta === 'vencido' ? 'border-red-400 bg-red-50' : 'border-[var(--panel-border)] hover:border-red-200'}`}>
+                <input
+                  type="radio"
+                  name="tipoAlerta"
+                  className="mt-0.5 accent-red-500"
+                  checked={tipoAlerta === 'vencido'}
+                  onChange={() => setTipoAlerta('vencido')}
+                />
+                <div>
+                  <p className="text-sm font-semibold text-red-700">Vencido</p>
+                  <p className="mt-0.5 text-xs text-[var(--text-muted)]">O prazo já foi ultrapassado e requer atenção imediata.</p>
+                </div>
+              </label>
+            </div>
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setGerarAlertaItem(null)} disabled={gerandoAlerta}>Cancelar</Button>
+              <Button type="button" variant="primary" onClick={() => { void handleGerarAlerta(); }} disabled={gerandoAlerta}>
+                <Bell className="mr-1.5 h-4 w-4" />{gerandoAlerta ? 'Gerando...' : 'Gerar Alerta'}
+              </Button>
+            </div>
+          </>
+        )}
+      </Modal>
+
     </div>
   );
 }
