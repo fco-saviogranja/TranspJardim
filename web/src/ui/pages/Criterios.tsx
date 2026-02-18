@@ -399,14 +399,14 @@ function FormFields({
 
   return (
     <div className="mt-4 grid gap-4 md:grid-cols-2">
-      <label className="grid gap-1.5 text-sm font-medium text-[var(--text)]">
+      <label className="grid min-w-0 gap-1.5 text-sm font-medium text-[var(--text)]">
         <span>Nome do Critério *</span>
-        <input className={inputCls} value={form.nome} onChange={(e) => setForm((p) => ({ ...p, nome: e.target.value }))} />
+        <input className={inputCls + ' w-full min-w-0'} value={form.nome} onChange={(e) => setForm((p) => ({ ...p, nome: e.target.value }))} />
       </label>
 
-      <label className="grid gap-1.5 text-sm font-medium text-[var(--text)]">
+      <label className="grid min-w-0 gap-1.5 text-sm font-medium text-[var(--text)]">
         <span>Status</span>
-        <select className={inputCls} value={form.status} onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}>
+        <select className={inputCls + ' w-full min-w-0'} value={form.status} onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}>
           <option>Ativo</option>
           <option>Pendente</option>
           <option>Vencido</option>
@@ -414,9 +414,9 @@ function FormFields({
         </select>
       </label>
 
-      <label className="grid gap-1.5 text-sm font-medium text-[var(--text)]">
+      <label className="grid min-w-0 gap-1.5 text-sm font-medium text-[var(--text)]">
         <span>Secretaria *</span>
-        <select className={inputCls} value={form.secretariaId} onChange={(e) => setForm((p) => ({ ...p, secretariaId: e.target.value }))}>
+        <select className={inputCls + ' w-full min-w-0'} value={form.secretariaId} onChange={(e) => setForm((p) => ({ ...p, secretariaId: e.target.value }))}>
           <option value="">Selecione</option>
           {secretarias.map((secretaria) => (
             <option key={secretaria.id} value={secretaria.id}>{secretaria.nome}</option>
@@ -424,9 +424,9 @@ function FormFields({
         </select>
       </label>
 
-      <label className="grid gap-1.5 text-sm font-medium text-[var(--text)]">
+      <label className="grid min-w-0 gap-1.5 text-sm font-medium text-[var(--text)]">
         <span>Responsável *</span>
-        <select className={inputCls} value={form.responsavel} onChange={(e) => setForm((p) => ({ ...p, responsavel: e.target.value }))}>
+        <select className={inputCls + ' w-full min-w-0'} value={form.responsavel} onChange={(e) => setForm((p) => ({ ...p, responsavel: e.target.value }))}>
           <option value="">Selecione</option>
           {usuarios.map((u) => (
             <option key={u.id} value={u.name || u.username}>{u.name || u.username}</option>
@@ -434,9 +434,9 @@ function FormFields({
         </select>
       </label>
 
-      <label className="grid gap-1.5 text-sm font-medium text-[var(--text)]">
+      <label className="grid min-w-0 gap-1.5 text-sm font-medium text-[var(--text)]">
         <span>Periodicidade *</span>
-        <select className={inputCls} value={form.periodicidade} onChange={(e) => setForm((p) => ({ ...p, periodicidade: e.target.value }))}>
+        <select className={inputCls + ' w-full min-w-0'} value={form.periodicidade} onChange={(e) => setForm((p) => ({ ...p, periodicidade: e.target.value }))}>
           <option>Mensal</option>
           <option>Bimestral</option>
           <option>Trimestral</option>
@@ -446,9 +446,9 @@ function FormFields({
         </select>
       </label>
 
-      <label className="grid gap-1.5 text-sm font-medium text-[var(--text)] md:col-span-2">
+      <label className="grid min-w-0 gap-1.5 text-sm font-medium text-[var(--text)] md:col-span-2">
         <span>Descrição</span>
-        <textarea className={inputCls} value={form.descricao} onChange={(e) => setForm((p) => ({ ...p, descricao: e.target.value }))} rows={4} />
+        <textarea className={inputCls + ' w-full min-w-0'} value={form.descricao} onChange={(e) => setForm((p) => ({ ...p, descricao: e.target.value }))} rows={4} />
       </label>
     </div>
   );
