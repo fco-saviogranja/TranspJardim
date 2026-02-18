@@ -889,9 +889,9 @@ function Toggle({ checked, onChange, disabled = false }: { checked: boolean; onC
 
 function ToggleField({ label, checked, onChange, disabled = false }: { label: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="text-sm font-bold text-[var(--text)]">{label}</span>
+    <div className="flex items-center gap-2 rounded-lg border border-[var(--panel-border)] bg-[var(--bg)] px-3 py-2.5">
       <Toggle checked={checked} onChange={onChange} disabled={disabled} />
+      <span className="text-sm font-bold text-[var(--text)]">{label}</span>
     </div>
   );
 }
