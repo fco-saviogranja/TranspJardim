@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, Filter, Pencil, Plus, Search, Trash2, Users } from 'lucide-react';
+import { CheckCircle, Download, Filter, Pencil, Plus, Search, Trash2, Users } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
 import { Panel } from '../components/Panel';
 import { apiFetch, apiJson } from '../lib/api';
+import { useIsAdmin } from '../lib/userContext';
 
 type Criterio = {
   id: string;
@@ -62,6 +63,7 @@ function downloadCsv(filename: string, content: string) {
 
 export default function Criterios() {
   const navigate = useNavigate();
+  const isAdmin = useIsAdmin();
   const [items, setItems] = useState<Criterio[]>([]);
   const [secretarias, setSecretarias] = useState<Secretaria[]>([]);
   const [query, setQuery] = useState('');
@@ -158,6 +160,18 @@ export default function Criterios() {
     setItems((prev) => prev.filter((item) => item.id !== id));
   }
 
+  async function handleConcluir(id: string) {
+    try {
+      const updated = await apiJson<Criterio>(`/api/criterios/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: 'Concluído' }),
+      });
+      setItems((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+    } catch {
+      alert('Não foi possível marcar como concluído.');
+    }
+  }
+
   function exportCsv() {
     const csv = buildCsv(filtered);
     downloadCsv('criterios.csv', csv);
@@ -183,8 +197,12 @@ export default function Criterios() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button type="button" variant="outline" size="sm" onClick={exportCsv}><Download className="mr-1.5 h-3.5 w-3.5" />Exportar</Button>
-            <Button type="button" variant="outline" size="sm" onClick={() => navigate('/criterios/secretarias')}><Users className="mr-1.5 h-3.5 w-3.5" />Secretarias</Button>
-            <Button type="button" variant="primary" size="sm" onClick={openCreateModal}><Plus className="mr-1.5 h-3.5 w-3.5" />Novo Critério</Button>
+            {isAdmin && (
+              <>
+                <Button type="button" variant="outline" size="sm" onClick={() => navigate('/criterios/secretarias')}><Users className="mr-1.5 h-3.5 w-3.5" />Secretarias</Button>
+                <Button type="button" variant="primary" size="sm" onClick={openCreateModal}><Plus className="mr-1.5 h-3.5 w-3.5" />Novo Critério</Button>
+              </>
+            )}
           </div>
         </div>
 
@@ -202,6 +220,7 @@ export default function Criterios() {
             <Filter className="h-4 w-4 text-[var(--text-muted)]" />
             <select
               className="rounded-lg border border-[var(--panel-border)] bg-white px-3 py-2 text-sm text-[var(--text)] outline-none"
+              title="Filtrar por status"
               value={status}
               onChange={(e) => setStatus(e.target.value)}
             >
@@ -240,8 +259,23 @@ export default function Criterios() {
                   <td className="border-b border-[var(--panel-border)]/50 px-4 py-3 text-[var(--text-muted)]">{it.responsavel}</td>
                   <td className="border-b border-[var(--panel-border)]/50 px-4 py-3">
                     <div className="flex items-center gap-1.5">
-                      <button className="grid h-8 w-8 place-items-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--primary-lighter)] hover:text-[var(--primary)]" type="button" title="Editar" onClick={() => openEditModal(it)}><Pencil className="h-4 w-4" /></button>
-                      <button className="grid h-8 w-8 place-items-center rounded-lg text-[var(--text-muted)] transition hover:bg-red-50 hover:text-[var(--danger)]" type="button" title="Excluir" onClick={() => { void handleDelete(it.id); }}><Trash2 className="h-4 w-4" /></button>
+                      {isAdmin ? (
+                        <>
+                          <button className="grid h-8 w-8 place-items-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--primary-lighter)] hover:text-[var(--primary)]" type="button" title="Editar" onClick={() => openEditModal(it)}><Pencil className="h-4 w-4" /></button>
+                          <button className="grid h-8 w-8 place-items-center rounded-lg text-[var(--text-muted)] transition hover:bg-red-50 hover:text-[var(--danger)]" type="button" title="Excluir" onClick={() => { void handleDelete(it.id); }}><Trash2 className="h-4 w-4" /></button>
+                        </>
+                      ) : (
+                        it.status !== 'Concluído' && (
+                          <button
+                            className="flex items-center gap-1.5 rounded-lg border border-[var(--success)] px-2.5 py-1 text-xs font-semibold text-[var(--success)] transition hover:bg-emerald-50"
+                            type="button"
+                            title="Marcar como Concluído"
+                            onClick={() => { void handleConcluir(it.id); }}
+                          >
+                            <CheckCircle className="h-3.5 w-3.5" />Concluir
+                          </button>
+                        )
+                      )}
                     </div>
                   </td>
                 </tr>

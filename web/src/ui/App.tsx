@@ -30,6 +30,7 @@ import Login from './pages/Login';
 import { Logo } from './components/Logo';
 import { authStorage, type User } from './lib/authStorage';
 import { apiFetch, apiJson } from './lib/api';
+import { UserContext } from './lib/userContext';
 
 type AuthMode = 'local' | 'easy-auth' | 'hybrid';
 
@@ -43,17 +44,18 @@ type SessionResponse = {
 };
 
 /* ─── Navigation items ─── */
-const NAV_ITEMS = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/criterios', icon: FileText, label: 'Critérios' },
-  { to: '/alertas', icon: Bell, label: 'Alertas' },
-  { to: '/relatorios', icon: BarChart3, label: 'Relatórios' },
-  { to: '/administracao', icon: Settings, label: 'Administração' },
+const ALL_NAV_ITEMS = [
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', adminOnly: false },
+  { to: '/criterios', icon: FileText, label: 'Critérios', adminOnly: false },
+  { to: '/alertas', icon: Bell, label: 'Alertas', adminOnly: false },
+  { to: '/relatorios', icon: BarChart3, label: 'Relatórios', adminOnly: false },
+  { to: '/administracao', icon: Settings, label: 'Administração', adminOnly: true },
 ];
 
 /* ─── Sidebar ─── */
 function Sidebar({
   user,
+  isAdmin,
   collapsed,
   onToggle,
   onLogout,
@@ -62,6 +64,7 @@ function Sidebar({
   onNavigate,
 }: {
   user: User | null;
+  isAdmin: boolean;
   collapsed: boolean;
   onToggle: () => void;
   onLogout: () => void;
@@ -69,6 +72,7 @@ function Sidebar({
   onClose: () => void;
   onNavigate: () => void;
 }) {
+  const navItems = ALL_NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin);
   return (
     <aside
       className={`fixed inset-y-0 left-0 z-40 flex w-[240px] flex-col bg-[var(--sidebar-bg)] transition-transform duration-200 md:transition-all md:duration-200 ${
@@ -93,7 +97,7 @@ function Sidebar({
 
       {/* Navigation */}
       <nav className="mt-4 flex flex-1 flex-col gap-1 px-3" aria-label="Navegação principal">
-        {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
+        {navItems.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}
@@ -189,6 +193,7 @@ function TopBar({ user, onOpenNav }: { user: User | null; onOpenNav: () => void 
 function Shell({ user, onLogout, children }: { user: User | null; onLogout: () => void; children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const isAdmin = user?.role === 'admin';
 
   return (
     <div className="min-h-screen">
@@ -202,6 +207,7 @@ function Shell({ user, onLogout, children }: { user: User | null; onLogout: () =
       ) : null}
       <Sidebar
         user={user}
+        isAdmin={isAdmin}
         collapsed={collapsed}
         onToggle={() => setCollapsed((p) => !p)}
         onLogout={onLogout}
@@ -221,10 +227,16 @@ function Shell({ user, onLogout, children }: { user: User | null; onLogout: () =
   );
 }
 
-/* ─── Route guard ─── */
+/* ─── Route guards ─── */
 function RequireAuth({ user, children }: { user: User | null; children: React.ReactNode }) {
   const location = useLocation();
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  return children;
+}
+
+function RequireAdmin({ user, children }: { user: User | null; children: React.ReactNode }) {
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role !== 'admin') return <Navigate to="/dashboard" replace />;
   return children;
 }
 
@@ -305,17 +317,19 @@ export default function App() {
         path="/*"
         element={(
           <RequireAuth user={user}>
-            <Shell user={user} onLogout={() => { void handleLogout(); }}>
-              <Routes>
-                <Route path="dashboard" element={<Dashboard />} />
-                <Route path="criterios" element={<Criterios />} />
-                <Route path="criterios/secretarias" element={<Secretarias />} />
-                <Route path="alertas" element={<Alertas />} />
-                <Route path="relatorios" element={<Relatorios />} />
-                <Route path="administracao" element={<Administracao />} />
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
-              </Routes>
-            </Shell>
+            <UserContext.Provider value={user}>
+              <Shell user={user} onLogout={() => { void handleLogout(); }}>
+                <Routes>
+                  <Route path="dashboard" element={<Dashboard />} />
+                  <Route path="criterios" element={<Criterios />} />
+                  <Route path="criterios/secretarias" element={<Secretarias />} />
+                  <Route path="alertas" element={<Alertas />} />
+                  <Route path="relatorios" element={<Relatorios />} />
+                  <Route path="administracao" element={<RequireAdmin user={user}><Administracao /></RequireAdmin>} />
+                  <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                </Routes>
+              </Shell>
+            </UserContext.Provider>
           </RequireAuth>
         )}
       />

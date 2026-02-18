@@ -13,6 +13,7 @@ import { Panel } from '../components/Panel';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
 import { apiFetch, apiJson } from '../lib/api';
+import { useIsAdmin } from '../lib/userContext';
 
 /* ───────────── Types ───────────── */
 
@@ -87,8 +88,7 @@ const defaultConfig: AlertaConfig = {
 
 /* ───────────── Main Component ───────────── */
 
-export default function Alertas() {
-  const [tab, setTab] = useState<Tab>('regras');
+export default function Alertas() {  const isAdmin = useIsAdmin();  const [tab, setTab] = useState<Tab>('regras');
 
   // Regras
   const [regras, setRegras] = useState<AlertaRegra[]>([]);
@@ -116,7 +116,7 @@ export default function Alertas() {
     } catch { /* keep defaults */ }
   }, []);
 
-  useEffect(() => { void loadRegras(); void loadConfig(); }, [loadRegras, loadConfig]);
+  useEffect(() => { void loadRegras(); if (isAdmin) void loadConfig(); }, [loadRegras, loadConfig, isAdmin]);
 
   /* ── Regra CRUD ── */
 
@@ -196,8 +196,10 @@ export default function Alertas() {
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'regras', label: 'Regras de Alertas' },
-    { key: 'notificacoes', label: 'Notificações' },
-    { key: 'globais', label: 'Configurações Globais' },
+    ...(isAdmin ? [
+      { key: 'notificacoes' as Tab, label: 'Notificações' },
+      { key: 'globais' as Tab, label: 'Configurações Globais' },
+    ] : []),
   ];
 
   return (
@@ -208,9 +210,11 @@ export default function Alertas() {
           <h2 className="text-xl font-bold text-[var(--text)]">Configurações de Alertas</h2>
           <p className="mt-1 text-sm text-[var(--text-muted)]">Configure regras automáticas e personalize notificações</p>
         </div>
-        <Button variant="primary" type="button" size="md" onClick={openNewRegraModal}>
-          <Plus className="mr-1.5 h-4 w-4" />Nova Regra
-        </Button>
+        {isAdmin && (
+          <Button variant="primary" type="button" size="md" onClick={openNewRegraModal}>
+            <Plus className="mr-1.5 h-4 w-4" />Nova Regra
+          </Button>
+        )}
       </div>
 
       {/* Tab bar */}
@@ -245,6 +249,7 @@ export default function Alertas() {
             <RegraCard
               key={r.id}
               regra={r}
+              isAdmin={isAdmin}
               onToggle={() => { void toggleRegra(r); }}
               onEdit={() => openEditRegraModal(r)}
               onDelete={() => { void deleteRegra(r.id); }}
@@ -385,11 +390,13 @@ export default function Alertas() {
 
 function RegraCard({
   regra: r,
+  isAdmin,
   onToggle,
   onEdit,
   onDelete,
 }: {
   regra: AlertaRegra;
+  isAdmin: boolean;
   onToggle: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -447,9 +454,13 @@ function RegraCard({
 
         {/* Right actions */}
         <div className="flex shrink-0 items-center gap-2">
-          <Toggle checked={r.ativo} onChange={onToggle} />
-          <button className="grid h-8 w-8 place-items-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--primary-lighter)] hover:text-[var(--primary)]" type="button" title="Editar" onClick={onEdit}><Pencil className="h-4 w-4" /></button>
-          <button className="grid h-8 w-8 place-items-center rounded-lg text-[var(--text-muted)] transition hover:bg-red-50 hover:text-[var(--danger)]" type="button" title="Excluir" onClick={onDelete}><Trash2 className="h-4 w-4" /></button>
+          {isAdmin && (
+            <>
+              <Toggle checked={r.ativo} onChange={onToggle} />
+              <button className="grid h-8 w-8 place-items-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--primary-lighter)] hover:text-[var(--primary)]" type="button" title="Editar" onClick={onEdit}><Pencil className="h-4 w-4" /></button>
+              <button className="grid h-8 w-8 place-items-center rounded-lg text-[var(--text-muted)] transition hover:bg-red-50 hover:text-[var(--danger)]" type="button" title="Excluir" onClick={onDelete}><Trash2 className="h-4 w-4" /></button>
+            </>
+          )}
         </div>
       </div>
     </div>
