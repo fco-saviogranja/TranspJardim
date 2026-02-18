@@ -520,6 +520,7 @@ async function createSqlStore({ sqlClient, localUsers }) {
         SELECT
           CAST(c.Id AS NVARCHAR(36)) AS criterioId,
           c.Nome AS nome,
+          c.Status AS criterioStatus,
           c.Periodicidade AS periodicidade,
           c.Responsavel AS responsavel,
           CAST(s.Id AS NVARCHAR(36)) AS secretariaId,
@@ -547,7 +548,7 @@ async function createSqlStore({ sqlClient, localUsers }) {
               ELSE CAST(YEAR(GETUTCDATE()) AS NVARCHAR(4))
             END
           )
-        WHERE c.Status = 'Ativo'
+        WHERE LOWER(ISNULL(c.Status, 'ativo')) NOT IN ('concluído', 'concluido')
 
         UNION
 
@@ -555,6 +556,7 @@ async function createSqlStore({ sqlClient, localUsers }) {
         SELECT
           CAST(c.Id AS NVARCHAR(36)) AS criterioId,
           c.Nome AS nome,
+          c.Status AS criterioStatus,
           c.Periodicidade AS periodicidade,
           c.Responsavel AS responsavel,
           CAST(s.Id AS NVARCHAR(36)) AS secretariaId,
@@ -572,7 +574,7 @@ async function createSqlStore({ sqlClient, localUsers }) {
         LEFT JOIN dbo.Secretarias s ON c.SecretariaId = s.Id
         WHERE sa.IsManual = 1
           AND sa.Situacao != 'ok'
-          AND c.Status = 'Ativo'
+          AND LOWER(ISNULL(c.Status, 'ativo')) NOT IN ('concluído', 'concluido')
 
         ORDER BY secretariaNome ASC, nome ASC;
       `);
@@ -601,7 +603,10 @@ async function createSqlStore({ sqlClient, localUsers }) {
         else if (diffDias <= 15) prioridade = 'urgente';
 
         // Se houver alerta manual com prioridade explícita, usa ela
-        const prioridadeFinal = row.prioridadeManual || prioridade;
+        let prioridadeFinal = row.prioridadeManual || prioridade;
+        if (String(row.criterioStatus ?? '').trim().toLowerCase() === 'vencido') {
+          prioridadeFinal = 'vencido';
+        }
 
         return {
           ...row,
@@ -612,7 +617,7 @@ async function createSqlStore({ sqlClient, localUsers }) {
           isManual: Boolean(row.isManual),
         };
       // Inclui: alertas auto urgente/vencido OU alertas manuais ativos
-      }).filter((r) => r.prioridade !== 'normal' || r.isManual);
+      }).filter((r) => r.prioridade !== 'normal' || r.isManual || String(r.criterioStatus ?? '').trim().toLowerCase() === 'vencido');
     },
 
     async gerarAlertaManual({ criterioId, cicloRef, prioridade, geradoPor }) {
