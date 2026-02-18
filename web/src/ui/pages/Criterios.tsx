@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle, Download, Filter, Pencil, Plus, Search, Trash2, Users } from 'lucide-react';
+import { CheckCircle, ChevronDown, Download, Filter, Pencil, Plus, Search, Trash2, Users } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
 import { Panel } from '../components/Panel';
@@ -73,6 +73,16 @@ export default function Criterios() {
   const [selected, setSelected] = useState<Criterio | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [error, setError] = useState('');
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  function toggleGroup(key: string) {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
 
   useEffect(() => {
     Promise.all([
@@ -270,18 +280,28 @@ export default function Criterios() {
       ) : (
         porSecretaria.map((grupo) => (
           <Panel key={grupo.id ?? '__sem__'}>
-            {/* Cabeçalho do grupo */}
-            <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--primary-lighter)]">
+            {/* Cabeçalho clicável */}
+            <button
+              type="button"
+              className="flex w-full items-center gap-3 text-left"
+              onClick={() => toggleGroup(grupo.id ?? '__sem__')}
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--primary-lighter)]">
                 <Users className="h-4 w-4 text-[var(--primary)]" />
               </div>
-              <div>
+              <div className="flex-1">
                 <h3 className="text-base font-bold text-[var(--text)]">{grupo.label}</h3>
                 <p className="text-xs text-[var(--text-muted)]">{grupo.items.length} critério{grupo.items.length !== 1 ? 's' : ''}</p>
               </div>
-            </div>
+              <ChevronDown
+                className={`h-5 w-5 shrink-0 text-[var(--text-muted)] transition-transform duration-200 ${
+                  expandedGroups.has(grupo.id ?? '__sem__') ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
 
-            <div className="overflow-x-auto">
+            {expandedGroups.has(grupo.id ?? '__sem__') && (
+            <div className="mt-4 overflow-x-auto">
               <table className="w-full min-w-[700px] border-separate border-spacing-0">
                 <thead>
                   <tr className="text-left text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
@@ -327,6 +347,7 @@ export default function Criterios() {
                 </tbody>
               </table>
             </div>
+            )}
           </Panel>
         ))
       )}
