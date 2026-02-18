@@ -164,7 +164,7 @@ export default function Alertas() {
   useEffect(() => {
     void loadAlertas();
     void loadRegras();
-    if (isAdmin) void loadConfig();
+    void loadConfig();
   }, [loadAlertas, loadRegras, loadConfig, isAdmin]);
 
   /* ── Situação ── */
@@ -273,10 +273,8 @@ export default function Alertas() {
   const tabs: { key: Tab; label: string }[] = [
     { key: 'alertas', label: 'Alertas de Critérios' },
     { key: 'regras', label: 'Regras' },
-    ...(isAdmin ? [
-      { key: 'notificacoes' as Tab, label: 'Notificações' },
-      { key: 'globais' as Tab, label: 'Configurações' },
-    ] : []),
+    { key: 'notificacoes', label: 'Notificações' },
+    { key: 'globais', label: 'Configurações' },
   ];
 
   const vencidos = alertas.filter((a) => a.prioridade === 'vencido' && a.situacao !== 'ok').length;
@@ -369,18 +367,20 @@ export default function Alertas() {
             <Bell className="h-5 w-5" />
             Preferências de Notificação
           </div>
+          {!isAdmin && <p className="mt-2 text-xs text-[var(--text-muted)]">Visualização somente leitura para usuários padrão.</p>}
 
           <div className="mt-6 grid gap-6 md:grid-cols-3">
-            <ToggleField label="Dashboard" checked={config.notifDashboard} onChange={(v) => setConfig((p) => ({ ...p, notifDashboard: v }))} />
-            <ToggleField label="Email" checked={config.notifEmail} onChange={(v) => setConfig((p) => ({ ...p, notifEmail: v }))} />
-            <ToggleField label="Push Notifications" checked={config.notifPush} onChange={(v) => setConfig((p) => ({ ...p, notifPush: v }))} />
+            <ToggleField label="Dashboard" checked={config.notifDashboard} disabled={!isAdmin} onChange={(v) => setConfig((p) => ({ ...p, notifDashboard: v }))} />
+            <ToggleField label="Email" checked={config.notifEmail} disabled={!isAdmin} onChange={(v) => setConfig((p) => ({ ...p, notifEmail: v }))} />
+            <ToggleField label="Push Notifications" checked={config.notifPush} disabled={!isAdmin} onChange={(v) => setConfig((p) => ({ ...p, notifPush: v }))} />
           </div>
 
           <div className="mt-8">
             <label className="block text-sm font-bold text-[var(--text)]">Frequência de Notificações</label>
             <select
-              className="mt-2 w-full rounded-lg border border-[var(--panel-border)] bg-white px-3.5 py-2.5 text-sm text-[var(--text)] outline-none transition focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-lighter)]"
+              className="mt-2 w-full rounded-lg border border-[var(--panel-border)] bg-white px-3.5 py-2.5 text-sm text-[var(--text)] outline-none transition focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-lighter)] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-[var(--text-muted)]"
               value={config.frequenciaNotif}
+              disabled={!isAdmin}
               title="Frequência de Notificações"
               onChange={(e) => setConfig((p) => ({ ...p, frequenciaNotif: e.target.value }))}
             >
@@ -392,16 +392,18 @@ export default function Alertas() {
           </div>
 
           <div className="mt-6">
-            <ToggleField label="Modo Silencioso (Horário de Descanso)" checked={config.modoSilencioso} onChange={(v) => setConfig((p) => ({ ...p, modoSilencioso: v }))} />
+            <ToggleField label="Modo Silencioso (Horário de Descanso)" checked={config.modoSilencioso} disabled={!isAdmin} onChange={(v) => setConfig((p) => ({ ...p, modoSilencioso: v }))} />
           </div>
 
-          <button
-            type="button"
-            className="mt-8 flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--primary-dark)]"
-            onClick={() => { void saveConfig(); }}
-          >
-            <Save className="h-4 w-4" />Salvar Configurações
-          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              className="mt-8 flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--primary-dark)]"
+              onClick={() => { void saveConfig(); }}
+            >
+              <Save className="h-4 w-4" />Salvar Configurações
+            </button>
+          )}
           {configSaved && <p className="mt-2 text-center text-sm font-medium text-[var(--success)]">Configurações salvas com sucesso!</p>}
         </Panel>
       )}
@@ -414,6 +416,7 @@ export default function Alertas() {
             Configurações do Sistema
           </div>
           <p className="mt-1 text-sm text-[var(--text-muted)]">Configure o comportamento global do sistema de alertas</p>
+          {!isAdmin && <p className="mt-2 text-xs text-[var(--text-muted)]">Visualização somente leitura para usuários padrão.</p>}
 
           <div className="mt-6 grid gap-5">
             <div>
@@ -422,13 +425,13 @@ export default function Alertas() {
                   <span className="text-sm font-bold text-[var(--text)]">Sistema de Alertas Ativo</span>
                   <p className="text-xs text-[var(--text-muted)]">Habilita/desabilita todo o sistema de alertas</p>
                 </div>
-                <Toggle checked={config.sistemaAtivo} onChange={(v) => setConfig((p) => ({ ...p, sistemaAtivo: v }))} />
+                <Toggle checked={config.sistemaAtivo} disabled={!isAdmin} onChange={(v) => setConfig((p) => ({ ...p, sistemaAtivo: v }))} />
               </div>
             </div>
 
-            <NumberField label="Máximo de Alertas por Dia" value={config.maxAlertasDia} onChange={(v) => setConfig((p) => ({ ...p, maxAlertasDia: v }))} />
+            <NumberField label="Máximo de Alertas por Dia" value={config.maxAlertasDia} disabled={!isAdmin} onChange={(v) => setConfig((p) => ({ ...p, maxAlertasDia: v }))} />
             <div>
-              <NumberField label="Limpeza Automática (dias)" value={config.limpezaDias} onChange={(v) => setConfig((p) => ({ ...p, limpezaDias: v }))} />
+              <NumberField label="Limpeza Automática (dias)" value={config.limpezaDias} disabled={!isAdmin} onChange={(v) => setConfig((p) => ({ ...p, limpezaDias: v }))} />
               <p className="mt-1 text-xs text-[var(--text-muted)]">Alertas lidos serão removidos automaticamente após este período</p>
             </div>
 
@@ -437,7 +440,7 @@ export default function Alertas() {
                 <span className="text-sm font-bold text-[var(--text)]">Apenas Dias Úteis</span>
                 <p className="text-xs text-[var(--text-muted)]">Alertas enviados apenas em dias úteis (segunda a sexta, exceto feriados)</p>
               </div>
-              <Toggle checked={config.apenasDiasUteis} onChange={(v) => setConfig((p) => ({ ...p, apenasDiasUteis: v }))} />
+              <Toggle checked={config.apenasDiasUteis} disabled={!isAdmin} onChange={(v) => setConfig((p) => ({ ...p, apenasDiasUteis: v }))} />
             </div>
 
             <div className="flex items-center justify-between">
@@ -445,7 +448,7 @@ export default function Alertas() {
                 <span className="text-sm font-bold text-[var(--text)]">E-mail Obrigatório</span>
                 <p className="text-xs text-[var(--text-muted)]">Todos os alertas devem incluir notificação por e-mail</p>
               </div>
-              <Toggle checked={config.emailObrigatorio} onChange={(v) => setConfig((p) => ({ ...p, emailObrigatorio: v }))} />
+              <Toggle checked={config.emailObrigatorio} disabled={!isAdmin} onChange={(v) => setConfig((p) => ({ ...p, emailObrigatorio: v }))} />
             </div>
 
             <div className="flex items-center justify-between">
@@ -453,17 +456,19 @@ export default function Alertas() {
                 <span className="text-sm font-bold text-[var(--text)]">Modo Debug</span>
                 <p className="text-xs text-[var(--text-muted)]">Exibe logs detalhados no console</p>
               </div>
-              <Toggle checked={config.modoDebug} onChange={(v) => setConfig((p) => ({ ...p, modoDebug: v }))} />
+              <Toggle checked={config.modoDebug} disabled={!isAdmin} onChange={(v) => setConfig((p) => ({ ...p, modoDebug: v }))} />
             </div>
           </div>
 
-          <button
-            type="button"
-            className="mt-8 flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--primary-dark)]"
-            onClick={() => { void saveConfig(); }}
-          >
-            <Save className="h-4 w-4" />Salvar Configurações
-          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              className="mt-8 flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--primary-dark)]"
+              onClick={() => { void saveConfig(); }}
+            >
+              <Save className="h-4 w-4" />Salvar Configurações
+            </button>
+          )}
           {configSaved && <p className="mt-2 text-center text-sm font-medium text-[var(--success)]">Configurações salvas com sucesso!</p>}
         </Panel>
       )}
@@ -860,10 +865,10 @@ function RegraFields({
 
 /* ── Toggle ── */
 
-function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+function Toggle({ checked, onChange, disabled = false }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return (
     <label
-      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors ${checked ? 'bg-[var(--primary)]' : 'bg-slate-300'}`}
+      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} ${checked ? 'bg-[var(--primary)]' : 'bg-slate-300'}`}
       title={checked ? 'Desativar' : 'Ativar'}
     >
       <input
@@ -871,6 +876,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
         className="sr-only"
         aria-label={checked ? 'Desativar' : 'Ativar'}
         checked={checked}
+        disabled={disabled}
         onChange={(e) => onChange(e.target.checked)}
       />
       <span
@@ -881,11 +887,11 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
   );
 }
 
-function ToggleField({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+function ToggleField({ label, checked, onChange, disabled = false }: { label: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <span className="text-sm font-bold text-[var(--text)]">{label}</span>
-      <Toggle checked={checked} onChange={onChange} />
+      <Toggle checked={checked} onChange={onChange} disabled={disabled} />
     </div>
   );
 }
@@ -899,15 +905,16 @@ function CheckboxField({ label, checked, onChange }: { label: string; checked: b
   );
 }
 
-function NumberField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+function NumberField({ label, value, onChange, disabled = false }: { label: string; value: number; onChange: (v: number) => void; disabled?: boolean }) {
   return (
     <div>
       <label className="block text-sm font-bold text-[var(--text)]">{label}</label>
       <input
         type="number"
         min={0}
+        disabled={disabled}
         title={label}
-        className="mt-2 w-full rounded-lg border border-[var(--panel-border)] bg-white px-3.5 py-2.5 text-sm text-[var(--text)] outline-none transition focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-lighter)]"
+        className="mt-2 w-full rounded-lg border border-[var(--panel-border)] bg-white px-3.5 py-2.5 text-sm text-[var(--text)] outline-none transition focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-lighter)] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-[var(--text-muted)]"
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
       />
