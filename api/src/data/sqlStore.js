@@ -14,10 +14,54 @@ function normalizeStatus(value) {
 }
 
 function normalizePeriodicidade(value) {
-  const options = ['Mensal', 'Bimestral', 'Semestral', 'Anual'];
+  const options = ['Mensal', 'Bimestral', 'Trimestral', 'Quadrimestral', 'Semestral', 'Anual'];
   const normalized = String(value ?? 'Mensal').trim().toLowerCase();
   const found = options.find((opt) => opt.toLowerCase() === normalized);
   return found ?? 'Mensal';
+}
+
+// Retorna a data limite do ciclo atual para uma dada periodicidade
+function calcularVencimentoCiclo(periodicidade, ref) {
+  const d = new Date(ref);
+  const y = d.getUTCFullYear();
+  const m = d.getUTCMonth(); // 0-based
+  switch (periodicidade) {
+    case 'Mensal':
+      return new Date(Date.UTC(y, m + 1, 0)); // último dia do mês
+    case 'Bimestral': {
+      const endMonth = Math.ceil((m + 1) / 2) * 2; // 2,4,6,8,10,12
+      return new Date(Date.UTC(y, endMonth, 0));
+    }
+    case 'Trimestral': {
+      const endMonth = Math.ceil((m + 1) / 3) * 3;
+      return new Date(Date.UTC(y, endMonth, 0));
+    }
+    case 'Quadrimestral': {
+      const endMonth = Math.ceil((m + 1) / 4) * 4;
+      return new Date(Date.UTC(y, endMonth, 0));
+    }
+    case 'Semestral': {
+      const endMonth = Math.ceil((m + 1) / 6) * 6;
+      return new Date(Date.UTC(y, endMonth, 0));
+    }
+    default: // Anual
+      return new Date(Date.UTC(y, 11, 31));
+  }
+}
+
+// Retorna a string identificadora do ciclo atual (ex: "2026-02", "2026-B1")
+function calcularCicloRef(periodicidade, ref) {
+  const d = new Date(ref);
+  const y = d.getUTCFullYear();
+  const m = d.getUTCMonth() + 1; // 1-based
+  switch (periodicidade) {
+    case 'Mensal':      return `${y}-${String(m).padStart(2, '0')}`;
+    case 'Bimestral':   return `${y}-B${Math.ceil(m / 2)}`;
+    case 'Trimestral':  return `${y}-T${Math.ceil(m / 3)}`;
+    case 'Quadrimestral': return `${y}-Q${Math.ceil(m / 4)}`;
+    case 'Semestral':   return `${y}-S${Math.ceil(m / 6)}`;
+    default:            return String(y);
+  }
 }
 
 function toPublicUser(row) {
@@ -142,6 +186,21 @@ async function createSqlStore({ sqlClient, localUsers }) {
           CONSTRAINT CK_AlertaConfig_Single CHECK (Id = 1)
         );
         INSERT INTO dbo.AlertaConfig (Id) VALUES (1);
+      END;
+
+      IF OBJECT_ID('dbo.AlertasSituacao', 'U') IS NULL
+      BEGIN
+        CREATE TABLE dbo.AlertasSituacao (
+          Id UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_AlertasSituacao PRIMARY KEY DEFAULT NEWID(),
+          CriterioId UNIQUEIDENTIFIER NOT NULL,
+          CicloRef NVARCHAR(20) NOT NULL,
+          Situacao NVARCHAR(20) NOT NULL CONSTRAINT DF_AlertasSituacao_Situacao DEFAULT 'pendente',
+          Observacao NVARCHAR(500) NULL,
+          AtualizadoPor NVARCHAR(200) NULL,
+          UpdatedAt DATETIME2 NOT NULL CONSTRAINT DF_AlertasSituacao_UpdatedAt DEFAULT SYSUTCDATETIME(),
+          CONSTRAINT FK_AlertasSituacao_Criterios FOREIGN KEY (CriterioId) REFERENCES dbo.Criterios (Id) ON DELETE CASCADE,
+          CONSTRAINT UQ_AlertasSituacao_Criterio_Ciclo UNIQUE (CriterioId, CicloRef)
+        );
       END;
     `);
 
@@ -426,6 +485,99 @@ async function createSqlStore({ sqlClient, localUsers }) {
         SELECT @@ROWCOUNT AS affected;
       `);
       return Number(result.recordset[0]?.affected ?? 0) > 0;
+    },
+
+    // ── Alertas por Critério (vencidos + próximos 15 dias) ─
+    async listAlertasCriterios() {
+      // Calcula cicloRef: prefixo YYYY-MM para o ciclo atual com base na periodicidade
+      const result = await query(null, `
+        SELECT
+          CAST(c.Id AS NVARCHAR(36)) AS criterioId,
+          c.Nome AS nome,
+          c.Periodicidade AS periodicidade,
+          c.Responsavel AS responsavel,
+          CAST(s.Id AS NVARCHAR(36)) AS secretariaId,
+          s.Nome AS secretariaNome,
+          CONVERT(VARCHAR(33), c.UpdatedAt, 126) AS ultimaAtualizacao,
+          ISNULL(sa.Situacao, 'pendente') AS situacao,
+          sa.Observacao AS observacao,
+          sa.AtualizadoPor AS atualizadoPor,
+          ISNULL(CAST(sa.Id AS NVARCHAR(36)), '') AS situacaoId,
+          sa.CicloRef AS cicloRef
+        FROM dbo.Criterios c
+        LEFT JOIN dbo.Secretarias s ON c.SecretariaId = s.Id
+        LEFT JOIN dbo.AlertasSituacao sa
+          ON sa.CriterioId = c.Id
+          AND sa.CicloRef = (
+            CASE c.Periodicidade
+              WHEN 'Mensal'       THEN FORMAT(GETUTCDATE(), 'yyyy-MM')
+              WHEN 'Bimestral'    THEN CAST(YEAR(GETUTCDATE()) AS NVARCHAR(4)) + '-B' + CAST(CEILING(MONTH(GETUTCDATE()) / 2.0) AS NVARCHAR(2))
+              WHEN 'Trimestral'   THEN CAST(YEAR(GETUTCDATE()) AS NVARCHAR(4)) + '-T' + CAST(CEILING(MONTH(GETUTCDATE()) / 3.0) AS NVARCHAR(2))
+              WHEN 'Quadrimestral' THEN CAST(YEAR(GETUTCDATE()) AS NVARCHAR(4)) + '-Q' + CAST(CEILING(MONTH(GETUTCDATE()) / 4.0) AS NVARCHAR(2))
+              WHEN 'Semestral'    THEN CAST(YEAR(GETUTCDATE()) AS NVARCHAR(4)) + '-S' + CAST(CEILING(MONTH(GETUTCDATE()) / 6.0) AS NVARCHAR(2))
+              ELSE CAST(YEAR(GETUTCDATE()) AS NVARCHAR(4))
+            END
+          )
+        WHERE c.Status = 'Ativo'
+        ORDER BY s.Nome ASC, c.Nome ASC;
+      `);
+
+      const hoje = new Date();
+      hoje.setUTCHours(0, 0, 0, 0);
+
+      return result.recordset.map((row) => {
+        // Calcula data de vencimento do ciclo atual
+        const vencimento = calcularVencimentoCiclo(row.periodicidade, hoje);
+        const diffMs = vencimento.getTime() - hoje.getTime();
+        const diffDias = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+        const cicloRef = calcularCicloRef(row.periodicidade, hoje);
+
+        let prioridade = 'normal';
+        if (diffDias < 0) prioridade = 'vencido';
+        else if (diffDias <= 15) prioridade = 'urgente';
+
+        return {
+          ...row,
+          cicloRef: row.cicloRef || cicloRef,
+          vencimento: vencimento.toISOString().slice(0, 10),
+          diasRestantes: diffDias,
+          prioridade,
+        };
+      }).filter((r) => r.prioridade !== 'normal' || r.situacao !== 'ok');
+    },
+
+    async upsertAlertaSituacao({ criterioId, cicloRef, situacao, observacao, atualizadoPor }) {
+      const sits = ['pendente', 'ok', 'em_producao'];
+      const sit = sits.includes(situacao) ? situacao : 'pendente';
+
+      // Tenta atualizar primeiro
+      const upd = await query((req) => {
+        req.input('criterioId', sql.UniqueIdentifier, criterioId);
+        req.input('cicloRef', sql.NVarChar(20), cicloRef);
+        req.input('situacao', sql.NVarChar(20), sit);
+        req.input('observacao', sql.NVarChar(500), observacao || null);
+        req.input('atualizadoPor', sql.NVarChar(200), atualizadoPor || null);
+      }, `
+        UPDATE dbo.AlertasSituacao
+        SET Situacao = @situacao, Observacao = @observacao, AtualizadoPor = @atualizadoPor, UpdatedAt = SYSUTCDATETIME()
+        WHERE CriterioId = @criterioId AND CicloRef = @cicloRef;
+        SELECT @@ROWCOUNT AS affected;
+      `);
+
+      if (Number(upd.recordset[0]?.affected ?? 0) === 0) {
+        await query((req) => {
+          req.input('criterioId', sql.UniqueIdentifier, criterioId);
+          req.input('cicloRef', sql.NVarChar(20), cicloRef);
+          req.input('situacao', sql.NVarChar(20), sit);
+          req.input('observacao', sql.NVarChar(500), observacao || null);
+          req.input('atualizadoPor', sql.NVarChar(200), atualizadoPor || null);
+        }, `
+          INSERT INTO dbo.AlertasSituacao (CriterioId, CicloRef, Situacao, Observacao, AtualizadoPor)
+          VALUES (@criterioId, @cicloRef, @situacao, @observacao, @atualizadoPor);
+        `);
+      }
+
+      return { ok: true };
     },
 
     async listAlertas() {

@@ -114,6 +114,23 @@ function createApp({ store, auth, config, sqlInfo }) {
     res.status(200).json({ items });
   }));
 
+  // Alertas gerados automaticamente a partir dos critérios (vencidos / próximos 15 dias)
+  app.get('/api/alertas/criterios', auth.requireAuth, wrap(async (_req, res) => {
+    const items = await store.listAlertasCriterios();
+    res.status(200).json({ items });
+  }));
+
+  // Responsável informa situação de um alerta de critério
+  app.patch('/api/alertas/criterios/situacao', auth.requireAuth, wrap(async (req, res) => {
+    const { criterioId, cicloRef, situacao, observacao } = req.body ?? {};
+    if (!criterioId || !cicloRef || !situacao) {
+      return res.status(400).json({ error: 'criterioId, cicloRef e situacao são obrigatórios.' });
+    }
+    const atualizadoPor = req.auth?.user?.name || req.auth?.user?.username || 'desconhecido';
+    const result = await store.upsertAlertaSituacao({ criterioId, cicloRef, situacao, observacao, atualizadoPor });
+    return res.status(200).json(result);
+  }));
+
   app.patch('/api/alertas/:id/read', auth.requireAuth, wrap(async (req, res) => {
     const updated = await store.markAlertaAsRead(req.params.id);
     if (!updated) return res.status(404).json({ error: 'Alerta não encontrado.' });

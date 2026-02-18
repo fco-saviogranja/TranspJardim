@@ -1,23 +1,47 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  AlertTriangle,
   Bell,
   Calendar,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Clock,
   Mail,
   Pencil,
   Plus,
   Save,
   Settings,
   Trash2,
+  Wrench,
 } from 'lucide-react';
 import { Panel } from '../components/Panel';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
 import { apiFetch, apiJson } from '../lib/api';
-import { useIsAdmin } from '../lib/userContext';
+import { useIsAdmin, useCurrentUser } from '../lib/userContext';
 
 /* ───────────── Types ───────────── */
 
-type Tab = 'regras' | 'notificacoes' | 'globais';
+type Tab = 'alertas' | 'regras' | 'notificacoes' | 'globais';
+
+type AlertaCriterio = {
+  criterioId: string;
+  nome: string;
+  periodicidade: string;
+  responsavel: string | null;
+  secretariaId: string | null;
+  secretariaNome: string | null;
+  ultimaAtualizacao: string | null;
+  situacao: 'pendente' | 'ok' | 'em_producao';
+  observacao: string | null;
+  atualizadoPor: string | null;
+  situacaoId: string;
+  cicloRef: string;
+  vencimento: string;
+  diasRestantes: number;
+  prioridade: 'vencido' | 'urgente' | 'normal';
+};
 
 type AlertaRegra = {
   id: string;
@@ -88,7 +112,19 @@ const defaultConfig: AlertaConfig = {
 
 /* ───────────── Main Component ───────────── */
 
-export default function Alertas() {  const isAdmin = useIsAdmin();  const [tab, setTab] = useState<Tab>('regras');
+export default function Alertas() {
+  const isAdmin = useIsAdmin();
+  const currentUser = useCurrentUser();
+  const [tab, setTab] = useState<Tab>('alertas');
+
+  // Alertas de critérios
+  const [alertas, setAlertas] = useState<AlertaCriterio[]>([]);
+  const [alertasLoading, setAlertasLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  // Modal de observação
+  const [obsModal, setObsModal] = useState<{ item: AlertaCriterio; situacao: 'ok' | 'em_producao' } | null>(null);
+  const [obsText, setObsText] = useState('');
 
   // Regras
   const [regras, setRegras] = useState<AlertaRegra[]>([]);
@@ -101,6 +137,15 @@ export default function Alertas() {  const isAdmin = useIsAdmin();  const [tab, 
   // Config (global + notificações)
   const [config, setConfig] = useState<AlertaConfig>(defaultConfig);
   const [configSaved, setConfigSaved] = useState(false);
+
+  const loadAlertas = useCallback(async () => {
+    setAlertasLoading(true);
+    try {
+      const d = await apiJson<{ items: AlertaCriterio[] }>('/api/alertas/criterios');
+      setAlertas((d.items ?? []) as AlertaCriterio[]);
+    } catch { setAlertas([]); }
+    finally { setAlertasLoading(false); }
+  }, []);
 
   const loadRegras = useCallback(async () => {
     try {
@@ -116,7 +161,38 @@ export default function Alertas() {  const isAdmin = useIsAdmin();  const [tab, 
     } catch { /* keep defaults */ }
   }, []);
 
-  useEffect(() => { void loadRegras(); if (isAdmin) void loadConfig(); }, [loadRegras, loadConfig, isAdmin]);
+  useEffect(() => {
+    void loadAlertas();
+    void loadRegras();
+    if (isAdmin) void loadConfig();
+  }, [loadAlertas, loadRegras, loadConfig, isAdmin]);
+
+  /* ── Situação ── */
+
+  async function setSituacao(item: AlertaCriterio, situacao: 'ok' | 'em_producao' | 'pendente', observacao?: string) {
+    setUpdatingId(item.criterioId);
+    try {
+      await apiFetch('/api/alertas/criterios/situacao', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ criterioId: item.criterioId, cicloRef: item.cicloRef, situacao, observacao: observacao ?? '' }),
+      });
+      await loadAlertas();
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  function openObsModal(item: AlertaCriterio, situacao: 'ok' | 'em_producao') {
+    setObsModal({ item, situacao });
+    setObsText(item.observacao ?? '');
+  }
+
+  async function confirmarObs() {
+    if (!obsModal) return;
+    await setSituacao(obsModal.item, obsModal.situacao, obsText);
+    setObsModal(null);
+  }
 
   /* ── Regra CRUD ── */
 
@@ -192,30 +268,44 @@ export default function Alertas() {  const isAdmin = useIsAdmin();  const [tab, 
     }
   }
 
-  /* ───────────── Tabs ───────────── */
+  /* ── Tabs ── */
 
   const tabs: { key: Tab; label: string }[] = [
-    { key: 'regras', label: 'Regras de Alertas' },
+    { key: 'alertas', label: 'Alertas de Critérios' },
+    { key: 'regras', label: 'Regras' },
     ...(isAdmin ? [
       { key: 'notificacoes' as Tab, label: 'Notificações' },
-      { key: 'globais' as Tab, label: 'Configurações Globais' },
+      { key: 'globais' as Tab, label: 'Configurações' },
     ] : []),
   ];
+
+  const vencidos = alertas.filter((a) => a.prioridade === 'vencido' && a.situacao !== 'ok').length;
+  const urgentes = alertas.filter((a) => a.prioridade === 'urgente' && a.situacao !== 'ok').length;
+  const pendentes = alertas.filter((a) => a.situacao === 'pendente').length;
 
   return (
     <div className="grid gap-5">
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-[var(--text)]">Configurações de Alertas</h2>
-          <p className="mt-1 text-sm text-[var(--text-muted)]">Configure regras automáticas e personalize notificações</p>
+          <h2 className="text-xl font-bold text-[var(--text)]">Alertas</h2>
+          <p className="mt-1 text-sm text-[var(--text-muted)]">Critérios vencidos ou a vencer nos próximos 15 dias</p>
         </div>
-        {isAdmin && (
+        {tab === 'regras' && isAdmin && (
           <Button variant="primary" type="button" size="md" onClick={openNewRegraModal}>
             <Plus className="mr-1.5 h-4 w-4" />Nova Regra
           </Button>
         )}
       </div>
+
+      {/* Resumo */}
+      {tab === 'alertas' && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <SummaryCard color="danger" label="Vencidos" value={vencidos} icon={AlertTriangle} />
+          <SummaryCard color="warning" label="Urgentes (≤15 dias)" value={urgentes} icon={Clock} />
+          <SummaryCard color="muted" label="Pendentes de resposta" value={pendentes} icon={Bell} />
+        </div>
+      )}
 
       {/* Tab bar */}
       <div className="flex w-full overflow-x-auto rounded-lg border border-[var(--panel-border)] bg-[var(--bg)]">
@@ -231,9 +321,23 @@ export default function Alertas() {  const isAdmin = useIsAdmin();  const [tab, 
             onClick={() => setTab(t.key)}
           >
             {t.label}
+            {t.key === 'alertas' && pendentes > 0 && (
+              <span className="ml-1.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-[var(--danger)] px-1 text-[10px] font-bold text-white">{pendentes}</span>
+            )}
           </button>
         ))}
       </div>
+
+      {/* ── Tab: Alertas de Critérios ── */}
+      {tab === 'alertas' && (
+        <AlertasCriteriosTab
+          alertas={alertas}
+          loading={alertasLoading}
+          updatingId={updatingId}
+          onSituacao={setSituacao}
+          onOpenObs={openObsModal}
+        />
+      )}
 
       {/* ── Tab: Regras ── */}
       {tab === 'regras' && (
@@ -382,6 +486,238 @@ export default function Alertas() {  const isAdmin = useIsAdmin();  const [tab, 
           <Button type="button" variant="primary" onClick={() => { void updateRegra(); }}>Salvar</Button>
         </div>
       </Modal>
+
+      {/* Modal de observação */}
+      <Modal open={obsModal !== null} title={obsModal?.situacao === 'ok' ? 'Marcar como OK' : 'Em Produção'} onClose={() => setObsModal(null)}>
+        <p className="text-sm text-[var(--text-muted)]">Critério: <strong className="text-[var(--text)]">{obsModal?.item.nome}</strong></p>
+        <label className="mt-4 block text-sm font-medium text-[var(--text)]">
+          Observação (opcional)
+          <textarea
+            className="mt-1.5 w-full rounded-lg border border-[var(--panel-border)] bg-white px-3.5 py-2.5 text-sm text-[var(--text)] outline-none transition focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-lighter)] min-h-[80px] resize-y"
+            value={obsText}
+            onChange={(e) => setObsText(e.target.value)}
+            placeholder="Ex: publicado no portal em 18/02/2026..."
+          />
+        </label>
+        <div className="mt-5 flex items-center justify-end gap-2">
+          <Button type="button" variant="outline" onClick={() => setObsModal(null)}>Cancelar</Button>
+          <Button type="button" variant="primary" onClick={() => { void confirmarObs(); }}>Confirmar</Button>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+/* ───────────── AlertasCriteriosTab ───────────── */
+
+function AlertasCriteriosTab({
+  alertas,
+  loading,
+  updatingId,
+  onSituacao,
+  onOpenObs,
+}: {
+  alertas: AlertaCriterio[];
+  loading: boolean;
+  updatingId: string | null;
+  onSituacao: (item: AlertaCriterio, situacao: 'ok' | 'em_producao' | 'pendente', obs?: string) => Promise<void>;
+  onOpenObs: (item: AlertaCriterio, situacao: 'ok' | 'em_producao') => void;
+}) {
+  const [showResolved, setShowResolved] = useState(false);
+
+  if (loading) {
+    return (
+      <Panel className="flex flex-col items-center justify-center py-12">
+        <span className="text-sm text-[var(--text-muted)]">Carregando alertas...</span>
+      </Panel>
+    );
+  }
+
+  const ativos = alertas.filter((a) => a.situacao !== 'ok');
+  const resolvidos = alertas.filter((a) => a.situacao === 'ok');
+
+  if (ativos.length === 0 && resolvidos.length === 0) {
+    return (
+      <Panel className="flex flex-col items-center justify-center py-12">
+        <CheckCircle2 className="h-10 w-10 text-[var(--success)]" />
+        <p className="mt-3 text-sm font-semibold text-[var(--success)]">Tudo em dia!</p>
+        <p className="mt-1 text-xs text-[var(--text-muted)]">Nenhum critério vencido ou a vencer nos próximos 15 dias.</p>
+      </Panel>
+    );
+  }
+
+  return (
+    <div className="grid gap-3">
+      {ativos.map((item) => (
+        <AlertaCard
+          key={item.criterioId + item.cicloRef}
+          item={item}
+          disabled={updatingId === item.criterioId}
+          onOk={() => onOpenObs(item, 'ok')}
+          onEmProducao={() => onOpenObs(item, 'em_producao')}
+          onPendente={() => void onSituacao(item, 'pendente')}
+        />
+      ))}
+      {resolvidos.length > 0 && (
+        <div>
+          <button
+            type="button"
+            className="flex w-full items-center justify-between rounded-lg border border-[var(--panel-border)] bg-[var(--bg)] px-4 py-2.5 text-sm font-semibold text-[var(--text-muted)] hover:text-[var(--text)] transition"
+            onClick={() => setShowResolved((v) => !v)}
+          >
+            <span>Resolvidos neste ciclo ({resolvidos.length})</span>
+            {showResolved ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
+          {showResolved && (
+            <div className="mt-2 grid gap-2">
+              {resolvidos.map((item) => (
+                <AlertaCard
+                  key={item.criterioId + item.cicloRef}
+                  item={item}
+                  disabled={updatingId === item.criterioId}
+                  onOk={() => onOpenObs(item, 'ok')}
+                  onEmProducao={() => onOpenObs(item, 'em_producao')}
+                  onPendente={() => void onSituacao(item, 'pendente')}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ───────────── AlertaCard ───────────── */
+
+function AlertaCard({
+  item,
+  disabled,
+  onOk,
+  onEmProducao,
+  onPendente,
+}: {
+  item: AlertaCriterio;
+  disabled: boolean;
+  onOk: () => void;
+  onEmProducao: () => void;
+  onPendente: () => void;
+}) {
+  const isVencido = item.prioridade === 'vencido';
+  const isOk = item.situacao === 'ok';
+  const isEmProd = item.situacao === 'em_producao';
+
+  const borderColor = isOk
+    ? 'border-l-[var(--success)]'
+    : isEmProd
+    ? 'border-l-amber-400'
+    : isVencido
+    ? 'border-l-[var(--danger)]'
+    : 'border-l-amber-400';
+
+  const diasLabel = item.diasRestantes < 0
+    ? `Vencido há ${Math.abs(item.diasRestantes)} dia(s)`
+    : item.diasRestantes === 0
+    ? 'Vence hoje'
+    : `${item.diasRestantes} dia(s) restante(s)`;
+
+  return (
+    <div className={`rounded-xl border-l-4 bg-white p-4 shadow-sm ${borderColor}`}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-bold text-[var(--text)]">{item.nome}</span>
+            <SituacaoBadge situacao={item.situacao} />
+            <PrioridadeBadge prioridade={item.prioridade} />
+          </div>
+          <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-[var(--text-muted)]">
+            {item.secretariaNome && <span>{item.secretariaNome}</span>}
+            <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{item.periodicidade}</span>
+            <span className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              <span className={item.diasRestantes < 0 ? 'text-[var(--danger)] font-semibold' : item.diasRestantes <= 5 ? 'text-[var(--warning)] font-semibold' : ''}>
+                {diasLabel}
+              </span>
+            </span>
+            <span>Vence: {item.vencimento}</span>
+            <span>Ciclo: {item.cicloRef}</span>
+          </div>
+          {item.responsavel && (
+            <p className="mt-1 text-xs text-[var(--text-muted)]">Responsável: <span className="font-medium text-[var(--text)]">{item.responsavel}</span></p>
+          )}
+          {(isOk || isEmProd) && item.observacao && (
+            <p className="mt-1 text-xs italic text-[var(--text-muted)]">"{item.observacao}"</p>
+          )}
+          {(isOk || isEmProd) && item.atualizadoPor && (
+            <p className="mt-0.5 text-[10px] text-[var(--text-muted)]">por {item.atualizadoPor}</p>
+          )}
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {!isOk && (
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={onOk}
+              className="flex items-center gap-1.5 rounded-lg border border-[var(--success)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--success)] transition hover:bg-emerald-50 disabled:opacity-50"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />Está OK
+            </button>
+          )}
+          {!isEmProd && (
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={onEmProducao}
+              className="flex items-center gap-1.5 rounded-lg border border-amber-400 bg-white px-3 py-1.5 text-xs font-semibold text-amber-600 transition hover:bg-amber-50 disabled:opacity-50"
+            >
+              <Wrench className="h-3.5 w-3.5" />Em Produção
+            </button>
+          )}
+          {(isOk || isEmProd) && (
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={onPendente}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-[var(--text-muted)] transition hover:bg-slate-50 disabled:opacity-50"
+            >
+              Desfazer
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ───────────── Badges ───────────── */
+
+function SituacaoBadge({ situacao }: { situacao: string }) {
+  if (situacao === 'ok') return <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-[var(--success)]">OK</span>;
+  if (situacao === 'em_producao') return <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-600">Em Produção</span>;
+  return <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-[var(--text-muted)]">Pendente</span>;
+}
+
+function PrioridadeBadge({ prioridade }: { prioridade: string }) {
+  if (prioridade === 'vencido') return <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-[var(--danger)]">Vencido</span>;
+  if (prioridade === 'urgente') return <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-600">Urgente</span>;
+  return null;
+}
+
+/* ───────────── SummaryCard ───────────── */
+
+function SummaryCard({ color, label, value, icon: Icon }: { color: 'danger' | 'warning' | 'muted'; label: string; value: number; icon: React.ElementType }) {
+  const cls: Record<string, string> = {
+    danger: 'border-[var(--danger)]/20 bg-red-50 text-[var(--danger)]',
+    warning: 'border-amber-200 bg-amber-50 text-amber-600',
+    muted: 'border-[var(--panel-border)] bg-white text-[var(--text-muted)]',
+  };
+  return (
+    <div className={`flex items-center gap-3 rounded-xl border p-4 ${cls[color]}`}>
+      <Icon className="h-6 w-6 shrink-0" />
+      <div>
+        <p className="text-2xl font-bold leading-none">{value}</p>
+        <p className="mt-0.5 text-xs font-medium">{label}</p>
+      </div>
     </div>
   );
 }
