@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, ChevronDown, Download, Filter, Pencil, Plus, Search, Trash2, Users } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
 import { Panel } from '../components/Panel';
@@ -48,23 +49,33 @@ const emptyForm: FormState = {
   descricao: '',
 };
 
-function buildCsv(items: Criterio[]): string {
-  const header = ['Nome', 'Status', 'Periodicidade', 'Secretaria', 'Responsável'];
-  const lines = items.map((item) =>
-    [item.nome, item.status, item.periodicidade, item.secretaria, item.responsavel]
-      .map((value) => `"${String(value ?? '').replaceAll('"', '""')}"`)
-      .join(','));
-  return [header.join(','), ...lines].join('\n');
-}
+function exportXlsx(items: Criterio[]) {
+  const rows = items.map((item) => ({
+    'ID': item.id,
+    'Nome': item.nome,
+    'Status': item.status,
+    'Periodicidade': item.periodicidade,
+    'Secretaria': item.secretaria,
+    'Responsável': item.responsavel,
+    'Descrição': item.descricao ?? '',
+  }));
 
-function downloadCsv(filename: string, content: string) {
-  const blob = new Blob([content], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(url);
+  const ws = XLSX.utils.json_to_sheet(rows);
+
+  // Largura das colunas
+  ws['!cols'] = [
+    { wch: 8 },  // ID
+    { wch: 50 }, // Nome
+    { wch: 12 }, // Status
+    { wch: 16 }, // Periodicidade
+    { wch: 35 }, // Secretaria
+    { wch: 25 }, // Responsável
+    { wch: 60 }, // Descrição
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Critérios');
+  XLSX.writeFile(wb, 'criterios.xlsx');
 }
 
 export default function Criterios() {
@@ -213,8 +224,7 @@ export default function Criterios() {
   }
 
   function exportCsv() {
-    const csv = buildCsv(filtered);
-    downloadCsv('criterios.csv', csv);
+    exportXlsx(filtered);
   }
 
   const statusBadge = (s: string) => {
