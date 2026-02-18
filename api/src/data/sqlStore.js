@@ -574,37 +574,35 @@ async function createSqlStore({ sqlClient, localUsers }) {
           prioridade: prioridadeFinal,
           isManual: Boolean(row.isManual),
         };
-      // Inclui no resultado: alertas com prazo relevante OU alertas manuais pendentes
-      }).filter((r) => r.prioridade !== 'normal' || r.situacao !== 'ok' || r.isManual);
+      // Inclui: alertas com prazo relevante (urgente/vencido) OU qualquer alerta manual ativo (não resolvido)
+      }).filter((r) => r.prioridade !== 'normal' || (r.isManual && r.situacao !== 'ok'));
     },
 
     async gerarAlertaManual({ criterioId, cicloRef, prioridade, geradoPor }) {
       const prios = ['vencido', 'urgente', 'normal'];
       const prio = prios.includes(prioridade) ? prioridade : 'urgente';
 
-      const upd = await query((req) => {
+      // MERGE garante upsert atômico sem depender de @@ROWCOUNT em múltiplos result sets
+      await query((req) => {
         req.input('criterioId', sql.UniqueIdentifier, criterioId);
         req.input('cicloRef', sql.NVarChar(20), cicloRef);
         req.input('prioridade', sql.NVarChar(20), prio);
         req.input('atualizadoPor', sql.NVarChar(200), geradoPor || null);
       }, `
-        UPDATE dbo.AlertasSituacao
-        SET Situacao = 'pendente', Prioridade = @prioridade, IsManual = 1, AtualizadoPor = @atualizadoPor, UpdatedAt = SYSUTCDATETIME()
-        WHERE CriterioId = @criterioId AND CicloRef = @cicloRef;
-        SELECT @@ROWCOUNT AS affected;
-      `);
-
-      if (Number(upd.recordset[0]?.affected ?? 0) === 0) {
-        await query((req) => {
-          req.input('criterioId', sql.UniqueIdentifier, criterioId);
-          req.input('cicloRef', sql.NVarChar(20), cicloRef);
-          req.input('prioridade', sql.NVarChar(20), prio);
-          req.input('atualizadoPor', sql.NVarChar(200), geradoPor || null);
-        }, `
-          INSERT INTO dbo.AlertasSituacao (CriterioId, CicloRef, Situacao, Prioridade, IsManual, AtualizadoPor)
+        MERGE dbo.AlertasSituacao AS tgt
+        USING (SELECT @criterioId AS CriterioId, @cicloRef AS CicloRef) AS src
+          ON tgt.CriterioId = src.CriterioId AND tgt.CicloRef = src.CicloRef
+        WHEN MATCHED THEN
+          UPDATE SET
+            Situacao     = 'pendente',
+            Prioridade   = @prioridade,
+            IsManual     = 1,
+            AtualizadoPor = @atualizadoPor,
+            UpdatedAt    = SYSUTCDATETIME()
+        WHEN NOT MATCHED THEN
+          INSERT (CriterioId, CicloRef, Situacao, Prioridade, IsManual, AtualizadoPor)
           VALUES (@criterioId, @cicloRef, 'pendente', @prioridade, 1, @atualizadoPor);
-        `);
-      }
+      `);
 
       return { ok: true };
     },
