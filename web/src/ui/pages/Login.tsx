@@ -27,9 +27,9 @@ function LoginLayout({ children }: { children: React.ReactNode }) {
           position: formOpen ? 'absolute' : 'relative',
         }}
       >
-        <Logo size={80} light />
-        <h2 className="text-4xl font-extrabold tracking-tight text-white">TranspJardim</h2>
-        <p className="max-w-xs text-sm leading-relaxed text-slate-400">
+        <Logo size={72} light />
+        <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">TranspJardim</h2>
+        <p className="max-w-xs text-xs sm:text-sm leading-relaxed text-slate-400">
           Plataforma de transparência, eficiência e monitoramento de critérios para gestão pública municipal.
         </p>
         <div className="flex items-center gap-2">
@@ -50,7 +50,7 @@ function LoginLayout({ children }: { children: React.ReactNode }) {
 
       {/* ── Painel do formulário (desliza de baixo) ── */}
       <div
-        className="absolute inset-0 flex flex-col items-center justify-center px-6 py-12"
+        className="absolute inset-0 flex flex-col items-end sm:items-center justify-end sm:justify-center px-0 sm:px-6 py-0 sm:py-12"
         style={{
           transform: formOpen ? 'translateY(0)' : 'translateY(100%)',
           opacity: formOpen ? 1 : 0,
@@ -58,8 +58,8 @@ function LoginLayout({ children }: { children: React.ReactNode }) {
           pointerEvents: formOpen ? 'auto' : 'none',
         }}
       >
-        {/* card branco */}
-        <div className="w-full max-w-sm rounded-2xl bg-[var(--bg)] p-8 shadow-2xl">
+        {/* card branco — ocupa tela cheia no mobile, card flutuante no desktop */}
+        <div className="w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl bg-[var(--bg)] p-6 sm:p-8 shadow-2xl">
           {/* botão voltar */}
           <button
             onClick={() => setFormOpen(false)}

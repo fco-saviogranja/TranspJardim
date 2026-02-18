@@ -238,12 +238,12 @@ export default function Criterios() {
   };
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-4 sm:gap-5">
       <Panel>
-        <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
           <div>
-            <h2 className="text-xl font-bold text-[var(--text)]">Critérios e Indicadores</h2>
-            <p className="mt-1 text-sm text-[var(--text-muted)]">Gerencie e acompanhe todos os critérios de transparência municipal</p>
+            <h2 className="text-lg sm:text-xl font-bold text-[var(--text)]">Critérios e Indicadores</h2>
+            <p className="mt-1 text-xs sm:text-sm text-[var(--text-muted)]">Gerencie e acompanhe todos os critérios de transparência municipal</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button type="button" variant="outline" size="sm" onClick={exportCsv}><Download className="mr-1.5 h-3.5 w-3.5" />Exportar</Button>
@@ -256,20 +256,20 @@ export default function Criterios() {
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <div className="relative flex-1">
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="relative flex-1 min-w-0">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
             <input
-              className="w-full rounded-lg border border-[var(--panel-border)] bg-white py-2 pl-9 pr-3 text-sm text-[var(--text)] outline-none transition focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-lighter)]"
+              className="w-full rounded-lg border border-[var(--panel-border)] bg-white py-2.5 pl-9 pr-3 text-sm text-[var(--text)] outline-none transition focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-lighter)]"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Buscar critérios..."
             />
           </div>
           <div className="flex items-center gap-1.5">
-            <Filter className="h-4 w-4 text-[var(--text-muted)]" />
+            <Filter className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
             <select
-              className="rounded-lg border border-[var(--panel-border)] bg-white px-3 py-2 text-sm text-[var(--text)] outline-none"
+              className="flex-1 sm:flex-none rounded-lg border border-[var(--panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--text)] outline-none"
               title="Filtrar por status"
               value={status}
               onChange={(e) => setStatus(e.target.value)}
@@ -321,7 +321,46 @@ export default function Criterios() {
             </button>
 
             {expandedGroups.has(grupo.id ?? '__sem__') && (
-            <div className="mt-4 overflow-x-auto">
+            <div className="mt-4">
+              {/* Cards mobile */}
+              <div className="grid gap-3 sm:hidden">
+                {grupo.items.map((it) => (
+                  <div key={it.id} className="rounded-lg border border-[var(--panel-border)] bg-white p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-[var(--text)] leading-snug">{it.nome}</p>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                          <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusBadge(it.status)}`}>{it.status}</span>
+                          <span className="text-xs text-[var(--text-muted)]">{it.periodicidade}</span>
+                        </div>
+                        {it.responsavel && (
+                          <p className="mt-1 text-xs text-[var(--text-muted)]">Resp.: {it.responsavel}</p>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        {isAdmin ? (
+                          <>
+                            <button className="grid h-9 w-9 place-items-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--primary-lighter)] hover:text-[var(--primary)]" type="button" title="Editar" onClick={() => openEditModal(it)}><Pencil className="h-4 w-4" /></button>
+                            <button className="grid h-9 w-9 place-items-center rounded-lg text-[var(--text-muted)] transition hover:bg-red-50 hover:text-[var(--danger)]" type="button" title="Excluir" onClick={() => { void handleDelete(it.id); }}><Trash2 className="h-4 w-4" /></button>
+                          </>
+                        ) : (
+                          it.status !== 'Concluído' && (
+                            <button
+                              className="flex items-center gap-1.5 rounded-lg border border-[var(--success)] px-2.5 py-1.5 text-xs font-semibold text-[var(--success)] transition hover:bg-emerald-50"
+                              type="button"
+                              onClick={() => { void handleConcluir(it.id); }}
+                            >
+                              <CheckCircle className="h-3.5 w-3.5" />Concluir
+                            </button>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* Tabela sm+ */}
+              <div className="hidden sm:block overflow-x-auto">
               <table className="w-full min-w-[700px] border-separate border-spacing-0">
                 <thead>
                   <tr className="text-left text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
@@ -366,6 +405,7 @@ export default function Criterios() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
             )}
           </Panel>

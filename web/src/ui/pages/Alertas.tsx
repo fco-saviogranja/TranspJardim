@@ -286,10 +286,10 @@ export default function Alertas() {
   return (
     <div className="grid gap-5">
       {/* Header */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-xl font-bold text-[var(--text)]">Alertas</h2>
-          <p className="mt-1 text-sm text-[var(--text-muted)]">Critérios vencidos ou a vencer nos próximos 15 dias</p>
+          <h2 className="text-lg sm:text-xl font-bold text-[var(--text)]">Alertas</h2>
+          <p className="mt-1 text-xs sm:text-sm text-[var(--text-muted)]">Critérios vencidos ou a vencer nos próximos 15 dias</p>
         </div>
         {tab === 'regras' && isAdmin && (
           <Button variant="primary" type="button" size="md" onClick={openNewRegraModal}>
@@ -300,7 +300,7 @@ export default function Alertas() {
 
       {/* Resumo */}
       {tab === 'alertas' && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <SummaryCard color="danger" label="Vencidos" value={vencidos} icon={AlertTriangle} />
           <SummaryCard color="warning" label="Urgentes (≤15 dias)" value={urgentes} icon={Clock} />
           <SummaryCard color="muted" label="Pendentes de resposta" value={pendentes} icon={Bell} />

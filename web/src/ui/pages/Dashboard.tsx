@@ -129,47 +129,77 @@ function SecretariaTable({ rows }: { rows: SecretariaRow[] }) {
     <div className="py-8 text-center text-sm text-[var(--text-muted)]">Nenhuma secretaria cadastrada.</div>
   );
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-[var(--panel-border)] text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-            <th className="pb-2 text-left">Secretaria</th>
-            <th className="pb-2 text-right">Total</th>
-            <th className="pb-2 text-right">Ativos</th>
-            <th className="pb-2 text-right">Pendentes</th>
-            <th className="pb-2 text-right">Vencidos</th>
-            <th className="pb-2 pl-4 text-left">Conformidade</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-[var(--panel-border)]">
-          {rows.map((r) => {
-            const conf = pct(r.ativos, r.total);
-            const confColor = conf >= 80 ? 'text-emerald-600' : conf >= 50 ? 'text-amber-600' : 'text-red-600';
-            return (
-              <tr key={r.sigla} className="hover:bg-[var(--bg)]">
-                <td className="py-2.5 pr-2">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex h-6 min-w-[2.5rem] items-center justify-center rounded bg-[var(--primary-lighter)] px-1.5 text-[10px] font-bold text-[var(--primary)]">
-                      {r.sigla}
-                    </span>
-                    <span className="font-medium text-[var(--text)]">{r.secretaria}</span>
-                  </div>
-                </td>
-                <td className="py-2.5 text-right font-bold text-[var(--text)]">{r.total}</td>
-                <td className="py-2.5 text-right text-emerald-600">{r.ativos}</td>
-                <td className="py-2.5 text-right text-amber-600">{r.pendentes}</td>
-                <td className="py-2.5 text-right text-red-600">{r.vencidos}</td>
-                <td className="py-2.5 pl-4">
-                  <div className="flex items-center gap-2">
-                    <ProgressBar value={r.ativos} total={r.total} color="bg-emerald-500" />
-                    <span className={`w-8 text-right text-xs font-bold ${confColor}`}>{conf}%</span>
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+    <div>
+      {/* Cards no mobile */}
+      <div className="grid gap-3 sm:hidden">
+        {rows.map((r) => {
+          const conf = pct(r.ativos, r.total);
+          const confColor = conf >= 80 ? 'text-emerald-600' : conf >= 50 ? 'text-amber-600' : 'text-red-600';
+          return (
+            <div key={r.sigla} className="rounded-lg border border-[var(--panel-border)] bg-[var(--bg)] p-3">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex h-6 min-w-[2.5rem] items-center justify-center rounded bg-[var(--primary-lighter)] px-1.5 text-[10px] font-bold text-[var(--primary)]">
+                    {r.sigla}
+                  </span>
+                  <span className="text-sm font-semibold text-[var(--text)] leading-tight">{r.secretaria}</span>
+                </div>
+                <span className={`text-sm font-extrabold ${confColor}`}>{conf}%</span>
+              </div>
+              <ProgressBar value={r.ativos} total={r.total} color="bg-emerald-500" />
+              <div className="mt-2 flex items-center gap-3 text-xs text-[var(--text-muted)]">
+                <span>Total: <strong className="text-[var(--text)]">{r.total}</strong></span>
+                <span className="text-emerald-600">Ativos: {r.ativos}</span>
+                <span className="text-amber-600">Pend.: {r.pendentes}</span>
+                <span className="text-red-600">Venc.: {r.vencidos}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {/* Tabela no sm+ */}
+      <div className="hidden sm:block overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-[var(--panel-border)] text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+              <th className="pb-2 text-left">Secretaria</th>
+              <th className="pb-2 text-right">Total</th>
+              <th className="pb-2 text-right">Ativos</th>
+              <th className="pb-2 text-right">Pendentes</th>
+              <th className="pb-2 text-right">Vencidos</th>
+              <th className="pb-2 pl-4 text-left">Conformidade</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[var(--panel-border)]">
+            {rows.map((r) => {
+              const conf = pct(r.ativos, r.total);
+              const confColor = conf >= 80 ? 'text-emerald-600' : conf >= 50 ? 'text-amber-600' : 'text-red-600';
+              return (
+                <tr key={r.sigla} className="hover:bg-[var(--bg)]">
+                  <td className="py-2.5 pr-2">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex h-6 min-w-[2.5rem] items-center justify-center rounded bg-[var(--primary-lighter)] px-1.5 text-[10px] font-bold text-[var(--primary)]">
+                        {r.sigla}
+                      </span>
+                      <span className="font-medium text-[var(--text)]">{r.secretaria}</span>
+                    </div>
+                  </td>
+                  <td className="py-2.5 text-right font-bold text-[var(--text)]">{r.total}</td>
+                  <td className="py-2.5 text-right text-emerald-600">{r.ativos}</td>
+                  <td className="py-2.5 text-right text-amber-600">{r.pendentes}</td>
+                  <td className="py-2.5 text-right text-red-600">{r.vencidos}</td>
+                  <td className="py-2.5 pl-4">
+                    <div className="flex items-center gap-2">
+                      <ProgressBar value={r.ativos} total={r.total} color="bg-emerald-500" />
+                      <span className={`w-8 text-right text-xs font-bold ${confColor}`}>{conf}%</span>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -217,17 +247,17 @@ export default function Dashboard() {
   return (
     <div className="grid gap-6">
       {/* ── Cabeçalho ── */}
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="text-2xl font-extrabold text-[var(--text)]">Painel PNTP</h2>
-          <p className="mt-1 text-sm text-[var(--text-muted)]">
+          <h2 className="text-xl sm:text-2xl font-extrabold text-[var(--text)]">Painel PNTP</h2>
+          <p className="mt-1 text-xs sm:text-sm text-[var(--text-muted)]">
             Programa Nacional de Transparência Pública · Prefeitura de Jardim/CE ·{' '}
             <span className="font-semibold text-[var(--primary)]">Ciclo {new Date().getFullYear()}</span>
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-2 rounded-xl border border-[var(--panel-border)] bg-[var(--panel-bg)] px-4 py-2">
-          <ShieldCheck className="h-5 w-5 text-[var(--primary)]" />
-          <span className="text-sm font-bold text-[var(--text)]">
+        <div className="flex shrink-0 items-center gap-2 rounded-xl border border-[var(--panel-border)] bg-[var(--panel-bg)] px-3 sm:px-4 py-2">
+          <ShieldCheck className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--primary)]" />
+          <span className="text-xs sm:text-sm font-bold text-[var(--text)]">
             {loading ? '…' : `${pctConf}% em conformidade`}
           </span>
         </div>
@@ -243,7 +273,7 @@ export default function Dashboard() {
       )}
 
       {/* ── Cards de métricas ── */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 sm:grid-cols-3 xl:grid-cols-6">
         <StatCard label="Total de Critérios" value={loading ? '…' : total}
           sub="cadastrados no PNTP" icon={FileText}
           iconBg="bg-[var(--primary-lighter)]" iconColor="text-[var(--primary)]" />
@@ -271,10 +301,10 @@ export default function Dashboard() {
 
       {/* ── Secretarias + Periodicidades ── */}
       <div className="grid gap-4 lg:grid-cols-3">
-        <Panel className="lg:col-span-2">
+        <Panel className="lg:col-span-2 overflow-hidden">
           <div className="mb-4 flex items-center gap-2">
-            <Users className="h-5 w-5 text-[var(--primary)]" />
-            <h3 className="text-base font-bold text-[var(--text)]">Critérios por Secretaria</h3>
+            <Users className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--primary)]" />
+            <h3 className="text-sm sm:text-base font-bold text-[var(--text)]">Critérios por Secretaria</h3>
           </div>
           {loading
             ? <div className="py-8 text-center text-sm text-[var(--text-muted)]">Carregando…</div>
@@ -283,8 +313,8 @@ export default function Dashboard() {
 
         <Panel>
           <div className="mb-4 flex items-center gap-2">
-            <Clock className="h-5 w-5 text-[var(--primary)]" />
-            <h3 className="text-base font-bold text-[var(--text)]">Por Periodicidade</h3>
+            <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--primary)]" />
+            <h3 className="text-sm sm:text-base font-bold text-[var(--text)]">Por Periodicidade</h3>
           </div>
           {loading
             ? <div className="py-8 text-center text-sm text-[var(--text-muted)]">Carregando…</div>
@@ -309,13 +339,13 @@ export default function Dashboard() {
           O PNTP organiza os critérios de transparência em eixos temáticos conforme a Cartilha 2025.
           Os {total} critérios cadastrados cobrem os eixos abaixo.
         </p>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 sm:grid-cols-4">
           {EIXOS_PNTP.map(({ id, label, icon: Icon, cor }) => (
-            <div key={id} className="flex flex-col items-center gap-2 rounded-xl border border-[var(--panel-border)] p-4 text-center">
-              <div className={`grid h-10 w-10 place-items-center rounded-xl ${cor}`}>
-                <Icon className="h-5 w-5 text-white" />
+            <div key={id} className="flex flex-col items-center gap-2 rounded-xl border border-[var(--panel-border)] p-3 sm:p-4 text-center">
+              <div className={`grid h-8 w-8 sm:h-10 sm:w-10 place-items-center rounded-xl ${cor}`}>
+                <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
               </div>
-              <p className="text-xs font-semibold leading-tight text-[var(--text)]">{label}</p>
+              <p className="text-[11px] sm:text-xs font-semibold leading-tight text-[var(--text)]">{label}</p>
             </div>
           ))}
         </div>

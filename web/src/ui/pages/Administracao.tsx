@@ -229,30 +229,56 @@ export default function Administracao() {
   return (
     <div className="grid gap-5">
       <div>
-        <h2 className="text-xl font-bold text-[var(--text)]">Painel Administrativo</h2>
-        <p className="mt-1 text-sm text-[var(--text-muted)]">Gerencie usuários, configurações e monitore o sistema</p>
+        <h2 className="text-lg sm:text-xl font-bold text-[var(--text)]">Painel Administrativo</h2>
+        <p className="mt-1 text-xs sm:text-sm text-[var(--text-muted)]">Gerencie usuários, configurações e monitore o sistema</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {overviewCards.map(({ label, value, icon: Icon, color, bg }) => (
           <Panel key={label} className="flex items-start gap-3">
-            <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${bg}`}>
-              <Icon className={`h-5 w-5 ${color}`} />
+            <div className={`grid h-9 w-9 sm:h-10 sm:w-10 shrink-0 place-items-center rounded-lg ${bg}`}>
+              <Icon className={`h-4 w-4 sm:h-5 sm:w-5 ${color}`} />
             </div>
             <div>
-              <div className="text-xs font-medium text-[var(--text-muted)]">{label}</div>
-              <div className="mt-0.5 text-2xl font-extrabold text-[var(--text)]">{value}</div>
+              <div className="text-[10px] sm:text-xs font-medium text-[var(--text-muted)]">{label}</div>
+              <div className="mt-0.5 text-xl sm:text-2xl font-extrabold text-[var(--text)]">{value}</div>
             </div>
           </Panel>
         ))}
       </div>
 
       <Panel>
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="text-base font-bold text-[var(--text)]">Usuários</h3>
           <Button type="button" variant="primary" size="sm" onClick={openNewModal}><Plus className="mr-1.5 h-3.5 w-3.5" />Novo Usuário</Button>
         </div>
-        <div className="mt-4 overflow-x-auto">
+
+        {/* Cards mobile */}
+        <div className="mt-4 grid gap-3 sm:hidden">
+          {usuarios.map((user) => (
+            <div key={user.id} className="flex items-start justify-between gap-3 rounded-lg border border-[var(--panel-border)] bg-white p-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-semibold text-[var(--text)]">{user.name}</span>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${user.role === 'admin' ? 'bg-purple-50 text-purple-700' : 'bg-slate-100 text-[var(--text-muted)]'}`}>
+                    {user.role === 'admin' ? 'Admin' : 'Padrão'}
+                  </span>
+                  <span className={`inline-block h-2 w-2 rounded-full ${user.isActive ? 'bg-[var(--success)]' : 'bg-slate-300'}`} />
+                </div>
+                <p className="mt-1 text-xs text-[var(--text-muted)]">@{user.username} · {user.email}</p>
+                {user.secretariaNome && <p className="mt-0.5 text-xs text-[var(--text-muted)]">{user.secretariaNome}</p>}
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <button className="grid h-9 w-9 place-items-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--primary-lighter)] hover:text-[var(--primary)]" type="button" title="Editar" onClick={() => openEditModal(user)}><Pencil className="h-4 w-4" /></button>
+                <button className="grid h-9 w-9 place-items-center rounded-lg text-[var(--text-muted)] transition hover:bg-red-50 hover:text-[var(--danger)]" type="button" title="Excluir" onClick={() => { void deleteUsuario(user.id); }}><Trash2 className="h-4 w-4" /></button>
+              </div>
+            </div>
+          ))}
+          {usuarios.length === 0 && <p className="py-6 text-center text-sm text-[var(--text-muted)]">Nenhum usuário cadastrado.</p>}
+        </div>
+
+        {/* Tabela sm+ */}
+        <div className="mt-4 hidden sm:block overflow-x-auto">
           <table className="w-full min-w-[900px] border-separate border-spacing-0">
             <thead>
               <tr className="text-left text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
@@ -313,11 +339,34 @@ export default function Administracao() {
 
       {/* ── Secretarias ── */}
       <Panel>
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="text-base font-bold text-[var(--text)]">Secretarias</h3>
           <Button type="button" variant="primary" size="sm" onClick={openNewSecModal}><Plus className="mr-1.5 h-3.5 w-3.5" />Nova Secretaria</Button>
         </div>
-        <div className="mt-4 overflow-x-auto">
+
+        {/* Cards mobile */}
+        <div className="mt-4 grid gap-3 sm:hidden">
+          {secretarias.map((sec) => (
+            <div key={sec.id} className="flex items-start justify-between gap-3 rounded-lg border border-[var(--panel-border)] bg-white p-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 shrink-0 text-[var(--info)]" />
+                  <span className="text-sm font-semibold text-[var(--text)]">{sec.nome}</span>
+                  <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-[var(--info)]">{sec.sigla}</span>
+                </div>
+                {sec.descricao && <p className="mt-1 text-xs text-[var(--text-muted)]">{sec.descricao}</p>}
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <button className="grid h-9 w-9 place-items-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--primary-lighter)] hover:text-[var(--primary)]" type="button" title="Editar" onClick={() => openEditSecModal(sec)}><Pencil className="h-4 w-4" /></button>
+                <button className="grid h-9 w-9 place-items-center rounded-lg text-[var(--text-muted)] transition hover:bg-red-50 hover:text-[var(--danger)]" type="button" title="Excluir" onClick={() => { void deleteSecretaria(sec.id); }}><Trash2 className="h-4 w-4" /></button>
+              </div>
+            </div>
+          ))}
+          {secretarias.length === 0 && <p className="py-6 text-center text-sm text-[var(--text-muted)]">Nenhuma secretaria cadastrada.</p>}
+        </div>
+
+        {/* Tabela sm+ */}
+        <div className="mt-4 hidden sm:block overflow-x-auto">
           <table className="w-full min-w-[700px] border-separate border-spacing-0">
             <thead>
               <tr className="text-left text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">

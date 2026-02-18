@@ -100,15 +100,34 @@ export default function Secretarias() {
   return (
     <div className="grid gap-5">
       <Panel>
-        <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
           <div>
-            <h2 className="text-xl font-bold text-[var(--text)]">Gerenciar Secretarias</h2>
-            <p className="mt-1 text-sm text-[var(--text-muted)]">Cadastre e gerencie as secretarias do município</p>
+            <h2 className="text-lg sm:text-xl font-bold text-[var(--text)]">Gerenciar Secretarias</h2>
+            <p className="mt-1 text-xs sm:text-sm text-[var(--text-muted)]">Cadastre e gerencie as secretarias do município</p>
           </div>
           <Button variant="primary" type="button" size="sm" onClick={openNewModal}><Plus className="mr-1.5 h-3.5 w-3.5" />Nova Secretaria</Button>
         </div>
 
-        <div className="mt-5 overflow-x-auto">
+        {/* Cards mobile */}
+        <div className="mt-4 grid gap-3 sm:hidden">
+          {items.map((it) => (
+            <div key={it.id} className="flex items-start justify-between gap-3 rounded-lg border border-[var(--panel-border)] bg-white p-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-[var(--text)]">{it.nome}</p>
+                <span className="mt-1 inline-block rounded-md bg-[var(--primary-lighter)] px-2 py-0.5 text-[10px] font-semibold text-[var(--primary)]">{it.sigla}</span>
+                {it.descricao && <p className="mt-1 text-xs text-[var(--text-muted)]">{it.descricao}</p>}
+              </div>
+              <div className="flex items-center gap-1">
+                <button className="grid h-9 w-9 place-items-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--primary-lighter)] hover:text-[var(--primary)]" type="button" title="Editar" onClick={() => openEditModal(it)}><Pencil className="h-4 w-4" /></button>
+                <button className="grid h-9 w-9 place-items-center rounded-lg text-[var(--text-muted)] transition hover:bg-red-50 hover:text-[var(--danger)]" type="button" title="Excluir" onClick={() => { void handleDelete(it.id); }}><Trash2 className="h-4 w-4" /></button>
+              </div>
+            </div>
+          ))}
+          {!items.length && <p className="py-6 text-center text-sm text-[var(--text-muted)]">Nenhuma secretaria cadastrada.</p>}
+        </div>
+
+        {/* Tabela sm+ */}
+        <div className="mt-5 hidden sm:block overflow-x-auto">
           <table className="w-full min-w-[900px] border-separate border-spacing-0">
             <thead>
               <tr className="text-left text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">

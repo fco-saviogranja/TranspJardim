@@ -219,7 +219,7 @@ function Shell({ user, onLogout, children }: { user: User | null; onLogout: () =
         className={`transition-all duration-200 ml-0 ${collapsed ? 'md:ml-[68px]' : 'md:ml-[240px]'}`}
       >
         <TopBar user={user} onOpenNav={() => setMobileOpen(true)} />
-        <main className="mx-auto w-full max-w-[1200px] p-4 sm:p-6">
+        <main className="mx-auto w-full max-w-[1200px] p-3 sm:p-4 lg:p-6">
           {children}
         </main>
       </div>

@@ -55,6 +55,24 @@ body {
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Previne zoom em inputs no iOS */
+  touch-action: manipulation;
+}
+
+/* Evita zoom em inputs no iOS (font-size >= 16px) */
+input, select, textarea {
+  font-size: 16px;
+}
+
+@media (min-width: 640px) {
+  input, select, textarea {
+    font-size: 14px;
+  }
+}
+
+/* Melhor tap target no mobile */
+button, a, [role="button"] {
+  -webkit-tap-highlight-color: transparent;
 }
 
 :focus-visible {
