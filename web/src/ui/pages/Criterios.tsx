@@ -439,6 +439,8 @@ function FormFields({
         <select className={inputCls} value={form.periodicidade} onChange={(e) => setForm((p) => ({ ...p, periodicidade: e.target.value }))}>
           <option>Mensal</option>
           <option>Bimestral</option>
+          <option>Trimestral</option>
+          <option>Quadrimestral</option>
           <option>Semestral</option>
           <option>Anual</option>
         </select>
