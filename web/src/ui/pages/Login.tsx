@@ -13,34 +13,67 @@ type LoginProps = {
 };
 
 function LoginLayout({ children }: { children: React.ReactNode }) {
+  const [formOpen, setFormOpen] = useState(false);
+
   return (
-    <div className="relative grid min-h-screen lg:grid-cols-2">
-      {/* left panel – branding */}
-      <div className="hidden flex-col items-center justify-center gap-6 bg-[var(--sidebar-bg)] px-10 lg:flex">
-        <Logo size={72} light />
-        <h2 className="text-3xl font-extrabold tracking-tight text-white">TranspJardim</h2>
-        <p className="max-w-xs text-center text-sm leading-relaxed text-slate-400">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[var(--sidebar-bg)]">
+      {/* ── Branding (sempre visível ao fundo) ── */}
+      <div
+        className="flex flex-col items-center justify-center gap-6 px-10 text-center transition-all duration-500"
+        style={{
+          transform: formOpen ? 'translateY(-40px)' : 'translateY(0)',
+          opacity: formOpen ? 0 : 1,
+          pointerEvents: formOpen ? 'none' : 'auto',
+          position: formOpen ? 'absolute' : 'relative',
+        }}
+      >
+        <Logo size={80} light />
+        <h2 className="text-4xl font-extrabold tracking-tight text-white">TranspJardim</h2>
+        <p className="max-w-xs text-sm leading-relaxed text-slate-400">
           Plataforma de transparência, eficiência e monitoramento de critérios para gestão pública municipal.
         </p>
-        <div className="mt-4 flex items-center gap-2">
+        <div className="flex items-center gap-2">
           <span className="h-1.5 w-8 rounded-full bg-[var(--primary)]" />
           <span className="h-1.5 w-8 rounded-full bg-[var(--primary)]/40" />
           <span className="h-1.5 w-8 rounded-full bg-[var(--primary)]/20" />
         </div>
+        <button
+          onClick={() => setFormOpen(true)}
+          className="mt-4 rounded-xl bg-[var(--primary)] px-8 py-3 text-sm font-bold text-white shadow-lg transition-all hover:bg-[var(--primary-dark)] hover:shadow-xl active:scale-95"
+        >
+          Acessar o sistema
+        </button>
+        <p className="text-xs text-slate-500">
+          © {new Date().getFullYear()} Prefeitura Municipal de Jardim · Controladoria Geral
+        </p>
       </div>
 
-      {/* right panel – form */}
-      <div className="flex flex-col items-center justify-center bg-[var(--bg)] px-6 py-12">
-        <div className="w-full max-w-sm">
-          {/* mobile logo */}
-          <div className="mb-8 flex items-center justify-center gap-3 lg:hidden">
-            <Logo size={40} />
-            <span className="text-xl font-extrabold text-[var(--text)]">TranspJardim</span>
-          </div>
+      {/* ── Painel do formulário (desliza de baixo) ── */}
+      <div
+        className="absolute inset-0 flex flex-col items-center justify-center px-6 py-12"
+        style={{
+          transform: formOpen ? 'translateY(0)' : 'translateY(100%)',
+          opacity: formOpen ? 1 : 0,
+          transition: 'transform 0.45s cubic-bezier(.4,0,.2,1), opacity 0.35s ease',
+          pointerEvents: formOpen ? 'auto' : 'none',
+        }}
+      >
+        {/* card branco */}
+        <div className="w-full max-w-sm rounded-2xl bg-[var(--bg)] p-8 shadow-2xl">
+          {/* botão voltar */}
+          <button
+            onClick={() => setFormOpen(false)}
+            className="mb-6 flex items-center gap-1.5 text-xs font-semibold text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
+          >
+            <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M10 12L6 8l4-4" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Voltar
+          </button>
           {children}
         </div>
-        <p className="mt-10 text-center text-xs text-[var(--text-muted)]">
-          © {new Date().getFullYear()} Prefeitura Municipal de Jardim &middot; Controladoria Geral
+        <p className="mt-6 text-center text-xs text-slate-500">
+          © {new Date().getFullYear()} Prefeitura Municipal de Jardim · Controladoria Geral
         </p>
       </div>
     </div>
