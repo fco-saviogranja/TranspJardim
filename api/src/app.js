@@ -16,6 +16,15 @@ function createApp({ store, auth, config, sqlInfo }) {
   const app = express();
   app.set('trust proxy', 1);
 
+  // Canonical host redirect: transpjardim.com -> www.transpjardim.com
+  app.use((req, res, next) => {
+    const host = String(req.headers.host || '').toLowerCase().split(':')[0];
+    if (host === 'transpjardim.com') {
+      return res.redirect(301, `https://www.transpjardim.com${req.originalUrl || '/'}`);
+    }
+    return next();
+  });
+
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
