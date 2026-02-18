@@ -41,6 +41,12 @@ jobs:
       - name: Build (web -> api/public)
         run: npm run build
 
+      - name: Prepare API runtime dependencies
+        run: |
+          cd api
+          rm -rf node_modules package-lock.json
+          npm install --omit=dev --workspaces=false
+
       - name: Deploy (api)
         uses: azure/webapps-deploy@v3
         with:
