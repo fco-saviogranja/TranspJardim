@@ -98,6 +98,26 @@ export default function Criterios() {
     });
   }, [items, query, status]);
 
+  // Agrupa os critérios filtrados por secretaria
+  const porSecretaria = useMemo(() => {
+    const map = new Map<string, { label: string; id: string | null; items: Criterio[] }>();
+
+    for (const it of filtered) {
+      const key = it.secretariaId ?? '__sem_secretaria__';
+      if (!map.has(key)) {
+        map.set(key, { label: it.secretaria || 'Sem Secretaria', id: it.secretariaId, items: [] });
+      }
+      map.get(key)!.items.push(it);
+    }
+
+    // Ordena os grupos: secretarias conhecidas em ordem alfabética, "Sem Secretaria" por último
+    return [...map.values()].sort((a, b) => {
+      if (!a.id) return 1;
+      if (!b.id) return -1;
+      return a.label.localeCompare(b.label, 'pt-BR');
+    });
+  }, [filtered]);
+
   function openCreateModal() {
     setError('');
     setForm(emptyForm);
@@ -235,63 +255,81 @@ export default function Criterios() {
       </Panel>
 
       <Panel>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] border-separate border-spacing-0">
-            <thead>
-              <tr className="text-left text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                <th className="border-b border-[var(--panel-border)] px-4 py-3">Nome</th>
-                <th className="border-b border-[var(--panel-border)] px-4 py-3">Status</th>
-                <th className="border-b border-[var(--panel-border)] px-4 py-3">Periodicidade</th>
-                <th className="border-b border-[var(--panel-border)] px-4 py-3">Secretaria</th>
-                <th className="border-b border-[var(--panel-border)] px-4 py-3">Responsável</th>
-                <th className="border-b border-[var(--panel-border)] px-4 py-3">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((it) => (
-                <tr key={it.id} className="text-sm transition-colors hover:bg-slate-50">
-                  <td className="border-b border-[var(--panel-border)]/50 px-4 py-3 font-semibold text-[var(--text)]">{it.nome}</td>
-                  <td className="border-b border-[var(--panel-border)]/50 px-4 py-3">
-                    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusBadge(it.status)}`}>{it.status}</span>
-                  </td>
-                  <td className="border-b border-[var(--panel-border)]/50 px-4 py-3 text-[var(--text-muted)]">{it.periodicidade}</td>
-                  <td className="border-b border-[var(--panel-border)]/50 px-4 py-3 text-[var(--text-muted)]">{it.secretaria}</td>
-                  <td className="border-b border-[var(--panel-border)]/50 px-4 py-3 text-[var(--text-muted)]">{it.responsavel}</td>
-                  <td className="border-b border-[var(--panel-border)]/50 px-4 py-3">
-                    <div className="flex items-center gap-1.5">
-                      {isAdmin ? (
-                        <>
-                          <button className="grid h-8 w-8 place-items-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--primary-lighter)] hover:text-[var(--primary)]" type="button" title="Editar" onClick={() => openEditModal(it)}><Pencil className="h-4 w-4" /></button>
-                          <button className="grid h-8 w-8 place-items-center rounded-lg text-[var(--text-muted)] transition hover:bg-red-50 hover:text-[var(--danger)]" type="button" title="Excluir" onClick={() => { void handleDelete(it.id); }}><Trash2 className="h-4 w-4" /></button>
-                        </>
-                      ) : (
-                        it.status !== 'Concluído' && (
-                          <button
-                            className="flex items-center gap-1.5 rounded-lg border border-[var(--success)] px-2.5 py-1 text-xs font-semibold text-[var(--success)] transition hover:bg-emerald-50"
-                            type="button"
-                            title="Marcar como Concluído"
-                            onClick={() => { void handleConcluir(it.id); }}
-                          >
-                            <CheckCircle className="h-3.5 w-3.5" />Concluir
-                          </button>
-                        )
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-
-              {!filtered.length ? (
-                <tr>
-                  <td className="px-4 py-12 text-center text-sm text-[var(--text-muted)]" colSpan={6}>
-                    Nenhum critério encontrado com os filtros aplicados.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-[var(--text)]">{filtered.length} critério{filtered.length !== 1 ? 's' : ''}</span>
+            <span className="text-sm text-[var(--text-muted)]">em {porSecretaria.length} secretaria{porSecretaria.length !== 1 ? 's' : ''}</span>
+          </div>
         </div>
       </Panel>
+
+      {porSecretaria.length === 0 ? (
+        <Panel>
+          <p className="py-10 text-center text-sm text-[var(--text-muted)]">Nenhum critério encontrado com os filtros aplicados.</p>
+        </Panel>
+      ) : (
+        porSecretaria.map((grupo) => (
+          <Panel key={grupo.id ?? '__sem__'}>
+            {/* Cabeçalho do grupo */}
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--primary-lighter)]">
+                <Users className="h-4 w-4 text-[var(--primary)]" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-[var(--text)]">{grupo.label}</h3>
+                <p className="text-xs text-[var(--text-muted)]">{grupo.items.length} critério{grupo.items.length !== 1 ? 's' : ''}</p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[700px] border-separate border-spacing-0">
+                <thead>
+                  <tr className="text-left text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                    <th className="border-b border-[var(--panel-border)] px-4 py-3">Nome</th>
+                    <th className="border-b border-[var(--panel-border)] px-4 py-3">Status</th>
+                    <th className="border-b border-[var(--panel-border)] px-4 py-3">Periodicidade</th>
+                    <th className="border-b border-[var(--panel-border)] px-4 py-3">Responsável</th>
+                    <th className="border-b border-[var(--panel-border)] px-4 py-3">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {grupo.items.map((it) => (
+                    <tr key={it.id} className="text-sm transition-colors hover:bg-slate-50">
+                      <td className="border-b border-[var(--panel-border)]/50 px-4 py-3 font-semibold text-[var(--text)]">{it.nome}</td>
+                      <td className="border-b border-[var(--panel-border)]/50 px-4 py-3">
+                        <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusBadge(it.status)}`}>{it.status}</span>
+                      </td>
+                      <td className="border-b border-[var(--panel-border)]/50 px-4 py-3 text-[var(--text-muted)]">{it.periodicidade}</td>
+                      <td className="border-b border-[var(--panel-border)]/50 px-4 py-3 text-[var(--text-muted)]">{it.responsavel}</td>
+                      <td className="border-b border-[var(--panel-border)]/50 px-4 py-3">
+                        <div className="flex items-center gap-1.5">
+                          {isAdmin ? (
+                            <>
+                              <button className="grid h-8 w-8 place-items-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--primary-lighter)] hover:text-[var(--primary)]" type="button" title="Editar" onClick={() => openEditModal(it)}><Pencil className="h-4 w-4" /></button>
+                              <button className="grid h-8 w-8 place-items-center rounded-lg text-[var(--text-muted)] transition hover:bg-red-50 hover:text-[var(--danger)]" type="button" title="Excluir" onClick={() => { void handleDelete(it.id); }}><Trash2 className="h-4 w-4" /></button>
+                            </>
+                          ) : (
+                            it.status !== 'Concluído' && (
+                              <button
+                                className="flex items-center gap-1.5 rounded-lg border border-[var(--success)] px-2.5 py-1 text-xs font-semibold text-[var(--success)] transition hover:bg-emerald-50"
+                                type="button"
+                                title="Marcar como Concluído"
+                                onClick={() => { void handleConcluir(it.id); }}
+                              >
+                                <CheckCircle className="h-3.5 w-3.5" />Concluir
+                              </button>
+                            )
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Panel>
+        ))
+      )}
 
       <Modal open={showNew} title="Novo Critério" onClose={() => setShowNew(false)}>
         <p className="text-sm text-[var(--text-muted)]">Preencha as informações para criar um novo critério.</p>
