@@ -405,8 +405,14 @@ async function createSqlStore({ sqlClient, localUsers }) {
       return Number(result.recordset[0]?.affected ?? 0) > 0;
     },
 
-    async listCriterios() {
-      const result = await query(null, `
+    async listCriterios(scope = {}) {
+      const isAdmin = scope?.isAdmin === true;
+      const secretariaId = scope?.secretariaId ? String(scope.secretariaId) : null;
+
+      const result = await query((req) => {
+        req.input('isAdmin', sql.Bit, isAdmin ? 1 : 0);
+        req.input('secretariaId', sql.UniqueIdentifier, secretariaId || null);
+      }, `
         SELECT
           CAST(c.Id AS NVARCHAR(36)) AS id,
           c.Nome AS nome,
@@ -420,6 +426,7 @@ async function createSqlStore({ sqlClient, localUsers }) {
           CONVERT(VARCHAR(33), c.UpdatedAt, 126) AS updatedAt
         FROM dbo.Criterios c
         LEFT JOIN dbo.Secretarias s ON s.Id = c.SecretariaId
+        WHERE (@isAdmin = 1 OR c.SecretariaId = @secretariaId)
         ORDER BY c.UpdatedAt DESC;
       `);
       return result.recordset;
@@ -514,8 +521,14 @@ async function createSqlStore({ sqlClient, localUsers }) {
     },
 
     // ── Alertas por Critério (vencidos + próximos 15 dias + manuais) ─
-    async listAlertasCriterios() {
-      const result = await query(null, `
+    async listAlertasCriterios(scope = {}) {
+      const isAdmin = scope?.isAdmin === true;
+      const secretariaId = scope?.secretariaId ? String(scope.secretariaId) : null;
+
+      const result = await query((req) => {
+        req.input('isAdmin', sql.Bit, isAdmin ? 1 : 0);
+        req.input('secretariaId', sql.UniqueIdentifier, secretariaId || null);
+      }, `
         -- Busca critérios com alerta automático (ciclo atual) OU alerta manual pendente
         SELECT
           CAST(c.Id AS NVARCHAR(36)) AS criterioId,
@@ -549,6 +562,7 @@ async function createSqlStore({ sqlClient, localUsers }) {
             END
           )
         WHERE LOWER(ISNULL(c.Status, 'ativo')) NOT IN ('concluído', 'concluido')
+          AND (@isAdmin = 1 OR c.SecretariaId = @secretariaId)
 
         UNION
 
@@ -575,6 +589,7 @@ async function createSqlStore({ sqlClient, localUsers }) {
         WHERE sa.IsManual = 1
           AND sa.Situacao != 'ok'
           AND LOWER(ISNULL(c.Status, 'ativo')) NOT IN ('concluído', 'concluido')
+          AND (@isAdmin = 1 OR c.SecretariaId = @secretariaId)
 
         ORDER BY secretariaNome ASC, nome ASC;
       `);

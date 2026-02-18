@@ -65,8 +65,12 @@ function createApp({ store, auth, config, sqlInfo }) {
     });
   }));
 
-  app.get('/api/criterios', auth.requireAuth, wrap(async (_req, res) => {
-    const items = await store.listCriterios();
+  app.get('/api/criterios', auth.requireAuth, wrap(async (req, res) => {
+    const scope = {
+      isAdmin: req.auth?.user?.role === 'admin',
+      secretariaId: req.auth?.user?.secretariaId ?? null,
+    };
+    const items = await store.listCriterios(scope);
     res.status(200).json({ items });
   }));
 
@@ -115,8 +119,12 @@ function createApp({ store, auth, config, sqlInfo }) {
   }));
 
   // Alertas gerados automaticamente a partir dos critérios (vencidos / próximos 15 dias)
-  app.get('/api/alertas/criterios', auth.requireAuth, wrap(async (_req, res) => {
-    const items = await store.listAlertasCriterios();
+  app.get('/api/alertas/criterios', auth.requireAuth, wrap(async (req, res) => {
+    const scope = {
+      isAdmin: req.auth?.user?.role === 'admin',
+      secretariaId: req.auth?.user?.secretariaId ?? null,
+    };
+    const items = await store.listAlertasCriterios(scope);
     res.status(200).json({ items });
   }));
 

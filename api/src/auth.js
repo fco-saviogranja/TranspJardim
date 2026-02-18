@@ -33,6 +33,7 @@ function toPublicUser(user) {
     role: user.role,
     name: user.name,
     email: user.email,
+    secretariaId: user.secretariaId ?? null,
     isActive: user.isActive,
   };
 }

@@ -159,8 +159,12 @@ async function createMemoryStore({ localUsers }) {
       return true;
     },
 
-    async listCriterios() {
-      return [...criterios];
+    async listCriterios(scope = {}) {
+      const isAdmin = scope?.isAdmin === true;
+      const secretariaId = scope?.secretariaId ? String(scope.secretariaId) : null;
+      if (isAdmin) return [...criterios];
+      if (!secretariaId) return [];
+      return criterios.filter((item) => item.secretariaId === secretariaId);
     },
 
     async createCriterio(input) {
@@ -231,11 +235,14 @@ async function createMemoryStore({ localUsers }) {
     },
 
     // ── Alertas por Critério (manual/auto) ────────────────
-    async listAlertasCriterios() {
+    async listAlertasCriterios(scope = {}) {
+      const isAdmin = scope?.isAdmin === true;
+      const secretariaId = scope?.secretariaId ? String(scope.secretariaId) : null;
       const hoje = new Date();
       hoje.setUTCHours(0, 0, 0, 0);
       return criterios
         .filter((c) => String(c.status ?? '').toLowerCase() !== 'inativo')
+        .filter((c) => isAdmin || (secretariaId && c.secretariaId === secretariaId))
         .map((c) => {
           const vencimento = new Date(hoje);
           vencimento.setUTCMonth(vencimento.getUTCMonth() + 1);
