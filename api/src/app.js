@@ -165,8 +165,18 @@ function createApp({ store, auth, config, sqlInfo }) {
     res.status(200).json(data);
   }));
 
+  // Endpoint restrito a admin: lista completa
   app.get('/api/usuarios', auth.requireAdmin, wrap(async (_req, res) => {
     const items = await store.listUsuarios();
+    res.status(200).json({ items });
+  }));
+
+  // Endpoint autenticado (qualquer role): lista básica de usuários não-admin ativos (para selects)
+  app.get('/api/usuarios/basico', auth.requireAuth, wrap(async (_req, res) => {
+    const all = await store.listUsuarios();
+    const items = all
+      .filter((u) => u.isActive && String(u.role ?? '').toLowerCase() !== 'admin')
+      .map((u) => ({ id: u.id, name: u.name || u.username, username: u.username }));
     res.status(200).json({ items });
   }));
 

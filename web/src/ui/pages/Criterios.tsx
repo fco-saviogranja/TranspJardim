@@ -24,6 +24,12 @@ type Secretaria = {
   sigla: string;
 };
 
+type UsuarioBasico = {
+  id: string;
+  name: string;
+  username: string;
+};
+
 type FormState = {
   nome: string;
   status: string;
@@ -66,6 +72,7 @@ export default function Criterios() {
   const isAdmin = useIsAdmin();
   const [items, setItems] = useState<Criterio[]>([]);
   const [secretarias, setSecretarias] = useState<Secretaria[]>([]);
+  const [usuarios, setUsuarios] = useState<UsuarioBasico[]>([]);
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('todos');
   const [showNew, setShowNew] = useState(false);
@@ -88,14 +95,17 @@ export default function Criterios() {
     Promise.all([
       apiJson<{ items: Criterio[] }>('/api/criterios'),
       apiJson<{ items: Secretaria[] }>('/api/secretarias'),
+      apiJson<{ items: UsuarioBasico[] }>('/api/usuarios/basico'),
     ])
-      .then(([criteriosRes, secretariasRes]) => {
+      .then(([criteriosRes, secretariasRes, usuariosRes]) => {
         setItems(criteriosRes.items ?? []);
         setSecretarias(secretariasRes.items ?? []);
+        setUsuarios(usuariosRes.items ?? []);
       })
       .catch(() => {
         setItems([]);
         setSecretarias([]);
+        setUsuarios([]);
       });
   }, []);
 
@@ -354,7 +364,7 @@ export default function Criterios() {
 
       <Modal open={showNew} title="Novo Critério" onClose={() => setShowNew(false)}>
         <p className="text-sm text-[var(--text-muted)]">Preencha as informações para criar um novo critério.</p>
-        <FormFields form={form} setForm={setForm} secretarias={secretarias} />
+        <FormFields form={form} setForm={setForm} secretarias={secretarias} usuarios={usuarios} />
         {error ? <div className="mt-3 rounded-lg border border-[var(--danger)]/30 bg-[var(--danger)]/5 px-3 py-2.5 text-sm text-[var(--danger)]">{error}</div> : null}
         <div className="mt-5 flex items-center justify-end gap-2">
           <Button type="button" variant="outline" onClick={() => setShowNew(false)}>Cancelar</Button>
@@ -363,7 +373,7 @@ export default function Criterios() {
       </Modal>
 
       <Modal open={showEdit} title="Editar Critério" onClose={() => setShowEdit(false)}>
-        <FormFields form={form} setForm={setForm} secretarias={secretarias} />
+        <FormFields form={form} setForm={setForm} secretarias={secretarias} usuarios={usuarios} />
         {error ? <div className="mt-3 rounded-lg border border-[var(--danger)]/30 bg-[var(--danger)]/5 px-3 py-2.5 text-sm text-[var(--danger)]">{error}</div> : null}
         <div className="mt-5 flex items-center justify-end gap-2">
           <Button type="button" variant="outline" onClick={() => setShowEdit(false)}>Cancelar</Button>
@@ -378,10 +388,12 @@ function FormFields({
   form,
   setForm,
   secretarias,
+  usuarios,
 }: {
   form: FormState;
   setForm: React.Dispatch<React.SetStateAction<FormState>>;
   secretarias: Secretaria[];
+  usuarios: UsuarioBasico[];
 }) {
   const inputCls = 'rounded-lg border border-[var(--panel-border)] bg-white px-3.5 py-2.5 text-sm text-[var(--text)] outline-none transition focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-lighter)]';
 
@@ -414,7 +426,12 @@ function FormFields({
 
       <label className="grid gap-1.5 text-sm font-medium text-[var(--text)]">
         <span>Responsável *</span>
-        <input className={inputCls} value={form.responsavel} onChange={(e) => setForm((p) => ({ ...p, responsavel: e.target.value }))} />
+        <select className={inputCls} value={form.responsavel} onChange={(e) => setForm((p) => ({ ...p, responsavel: e.target.value }))}>
+          <option value="">Selecione</option>
+          {usuarios.map((u) => (
+            <option key={u.id} value={u.name || u.username}>{u.name || u.username}</option>
+          ))}
+        </select>
       </label>
 
       <label className="grid gap-1.5 text-sm font-medium text-[var(--text)]">
