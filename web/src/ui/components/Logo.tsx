@@ -1,44 +1,31 @@
 import React from 'react';
 
 export function Logo({ size = 36, light = false }: { size?: number; light?: boolean }) {
-  const ink = light ? 'var(--sidebar-text-active)' : 'var(--primary)';
+  // Cores: no modo light (sidebar escura) a lupa fica branca; normal usa azul+verde da marca
+  const lupaColor   = light ? '#ffffff' : '#132d5e';
+  const verdeColor  = light ? '#7fffcf' : '#0e9e6e';
 
   return (
     <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 110 110"
       width={size}
       height={size}
-      viewBox="0 0 48 48"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
       aria-label="TranspJardim"
     >
-      {/* Documento (publicidade ativa / dados organizados) */}
-      <rect
-        x="9"
-        y="9"
-        width="22"
-        height="30"
-        rx="4"
-        fill={ink}
-        fillOpacity="0.12"
-        stroke={ink}
-        strokeWidth="2"
-      />
+      {/* Lupa: anel */}
+      <circle cx="45" cy="45" r="32" fill="none" stroke={lupaColor} strokeWidth="8" />
 
-      {/* Linhas de informação (linguagem cidadã / clareza) */}
-      <path d="M14 16H26" stroke={ink} strokeWidth="2" strokeLinecap="round" opacity="0.6" />
-      <path d="M14 22H26" stroke={ink} strokeWidth="2" strokeLinecap="round" opacity="0.6" />
-      <path d="M14 28H24" stroke={ink} strokeWidth="2" strokeLinecap="round" opacity="0.6" />
+      {/* Barras dentro da lente */}
+      <rect x="30" y="46" width="7" height="16" fill={lupaColor} rx="1.5" />
+      <rect x="42" y="34" width="7" height="28" fill={verdeColor} rx="1.5" />
+      <rect x="54" y="40" width="7" height="22" fill={lupaColor} rx="1.5" />
 
-      {/* Lupa (controle, fiscalização, foco) */}
-      <circle cx="31" cy="31" r="9.5" stroke={ink} strokeWidth="2.5" fill="none" />
-      <path d="M38 38L42 42" stroke={ink} strokeWidth="3" strokeLinecap="round" />
+      {/* Cabo */}
+      <line x1="69" y1="69" x2="90" y2="91" stroke={lupaColor} strokeWidth="8" strokeLinecap="round" />
 
-      {/* Foco interno (misto: contorno + detalhe preenchido) */}
-      <circle cx="31" cy="31" r="3.5" fill={ink} fillOpacity="0.85" />
-
+      {/* Ponto verde no cabo */}
+      <circle cx="90" cy="91" r="6" fill={verdeColor} />
     </svg>
   );
 }
-
-
