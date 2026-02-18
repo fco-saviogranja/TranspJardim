@@ -73,6 +73,7 @@ function toPublicUser(row) {
     name: row.name,
     email: row.email,
     phone: row.phone ?? null,
+    avatarUrl: row.avatarUrl ?? null,
     secretariaId: row.secretariaId ?? null,
     isActive: row.isActive,
     createdAt: row.createdAt,
@@ -116,6 +117,12 @@ async function createSqlStore({ sqlClient, localUsers }) {
       IF COL_LENGTH('dbo.Users', 'Phone') IS NULL
       BEGIN
         ALTER TABLE dbo.Users ADD Phone NVARCHAR(30) NULL;
+      END;
+
+      -- Add AvatarUrl column to existing tables that lack it
+      IF COL_LENGTH('dbo.Users', 'AvatarUrl') IS NULL
+      BEGIN
+        ALTER TABLE dbo.Users ADD AvatarUrl NVARCHAR(MAX) NULL;
       END;
 
       IF OBJECT_ID('dbo.Secretarias', 'U') IS NULL
@@ -941,16 +948,18 @@ async function createSqlStore({ sqlClient, localUsers }) {
     },
 
     async updatePerfil(id, input) {
-      // Rota restrita ao próprio usuário: só pode alterar nome e telefone
+      // Rota restrita ao próprio usuário: só pode alterar nome, telefone e avatar
       const updates = [];
       if (input.name !== undefined) updates.push('[Name] = @name');
       if (input.phone !== undefined) updates.push('Phone = @phone');
+      if (input.avatarUrl !== undefined) updates.push('AvatarUrl = @avatarUrl');
       if (!updates.length) return this.findUserById(id).then(toPublicUser);
 
       await query((req) => {
         req.input('id', sql.UniqueIdentifier, id);
         if (input.name !== undefined) req.input('name', sql.NVarChar(200), String(input.name ?? '').trim());
         if (input.phone !== undefined) req.input('phone', sql.NVarChar(30), input.phone ? String(input.phone).trim() : null);
+        if (input.avatarUrl !== undefined) req.input('avatarUrl', sql.NVarChar(sql.MAX), input.avatarUrl || null);
       }, `
         UPDATE dbo.Users SET ${updates.join(', ')} WHERE Id = @id;
       `);
@@ -976,6 +985,7 @@ async function createSqlStore({ sqlClient, localUsers }) {
           [Name] AS name,
           Email AS email,
           Phone AS phone,
+          AvatarUrl AS avatarUrl,
           PasswordHash AS passwordHash,
           CAST(SecretariaId AS NVARCHAR(36)) AS secretariaId,
           IsActive AS isActive,
@@ -995,6 +1005,7 @@ async function createSqlStore({ sqlClient, localUsers }) {
           [Name] AS name,
           Email AS email,
           Phone AS phone,
+          AvatarUrl AS avatarUrl,
           PasswordHash AS passwordHash,
           CAST(SecretariaId AS NVARCHAR(36)) AS secretariaId,
           IsActive AS isActive,
@@ -1014,6 +1025,7 @@ async function createSqlStore({ sqlClient, localUsers }) {
           [Name] AS name,
           Email AS email,
           Phone AS phone,
+          AvatarUrl AS avatarUrl,
           PasswordHash AS passwordHash,
           CAST(SecretariaId AS NVARCHAR(36)) AS secretariaId,
           IsActive AS isActive,

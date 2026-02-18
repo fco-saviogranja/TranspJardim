@@ -163,8 +163,28 @@ function ProfileModal({
 }) {
   const [name, setName] = useState(user.name);
   const [phone, setPhone] = useState(user.phone ?? '');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(user.avatarUrl ?? null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function handleAvatarClick() {
+    fileInputRef.current?.click();
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      setError('Imagem muito grande. Máximo: 2 MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setAvatarUrl(ev.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -172,18 +192,19 @@ function ProfileModal({
     setSaving(true);
     setError(null);
     try {
+      const token = authStorage.getToken();
       const res = await fetch('/api/perfil', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          ...(authStorage.getToken() ? { 'X-Auth-Token': authStorage.getToken()! } : {}),
+          ...(token ? { 'X-Auth-Token': token } : {}),
         },
         credentials: 'include',
-        body: JSON.stringify({ name: name.trim(), phone: phone.trim() || null }),
+        body: JSON.stringify({ name: name.trim(), phone: phone.trim() || null, avatarUrl }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({})) as { error?: string };
-        throw new Error(data.error ?? 'Erro ao salvar.');
+        throw new Error(data.error ?? `Erro ${res.status}`);
       }
       const updated = await res.json() as Partial<User>;
       onSaved(updated);
@@ -194,6 +215,8 @@ function ProfileModal({
       setSaving(false);
     }
   }
+
+  const initials = (name || user.name || 'U').charAt(0).toUpperCase();
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
@@ -222,12 +245,36 @@ function ProfileModal({
           </button>
         </div>
 
-        {/* Avatar */}
+        {/* Avatar clicável */}
         <div className="flex flex-col items-center mb-6">
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[var(--primary-lighter)] text-3xl font-bold text-[var(--primary)]">
-            {(name || user.name || 'U').charAt(0).toUpperCase()}
-          </div>
-          <p className="mt-2 text-sm text-[var(--text-muted)]">{user.username}</p>
+          <button
+            type="button"
+            onClick={handleAvatarClick}
+            title="Clique para alterar a foto"
+            className="group relative flex h-20 w-20 items-center justify-center rounded-full overflow-hidden bg-[var(--primary-lighter)] text-3xl font-bold text-[var(--primary)] ring-2 ring-offset-2 ring-transparent hover:ring-[var(--primary)] transition-all"
+          >
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+            ) : (
+              <span>{initials}</span>
+            )}
+            {/* Overlay de edição */}
+            <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Pencil className="h-5 w-5 text-white" />
+            </span>
+          </button>
+          <p className="mt-1.5 text-xs text-[var(--text-muted)]">Clique para alterar a foto</p>
+          <p className="text-sm text-[var(--text-muted)]">{user.username}</p>
+          {/* Input de arquivo oculto */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            title="Selecionar foto de perfil"
+            aria-label="Selecionar foto de perfil"
+            className="hidden"
+            onChange={handleFileChange}
+          />
         </div>
 
         <form onSubmit={handleSave} className="flex flex-col gap-4">
@@ -356,8 +403,12 @@ function TopBar({
             aria-haspopup="true"
             className="flex items-center gap-2 rounded-xl px-2 py-1 hover:bg-slate-100 transition-colors"
           >
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--primary-lighter)] text-sm font-bold text-[var(--primary)]">
-              {initials}
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--primary-lighter)] text-sm font-bold text-[var(--primary)] overflow-hidden">
+              {user?.avatarUrl ? (
+                <img src={user.avatarUrl} alt={initials} className="h-full w-full object-cover" />
+              ) : (
+                initials
+              )}
             </div>
             <div className="flex flex-col items-start leading-tight">
               <span className="max-w-[120px] truncate text-sm font-semibold text-[var(--text)]">{displayName}</span>

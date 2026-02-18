@@ -12,6 +12,8 @@ function toPublicUser(user) {
     role: user.role,
     name: user.name,
     email: user.email,
+    phone: user.phone ?? null,
+    avatarUrl: user.avatarUrl ?? null,
     secretariaId: user.secretariaId ?? null,
     isActive: user.isActive,
     createdAt: user.createdAt,
@@ -368,6 +370,20 @@ async function createMemoryStore({ localUsers }) {
         throw Object.assign(new Error('Username ou email já em uso.'), { statusCode: 409 });
       }
 
+      users[idx] = next;
+      return toPublicUser(next);
+    },
+
+    async updatePerfil(id, input) {
+      const idx = users.findIndex((user) => user.id === id);
+      if (idx === -1) return null;
+      const existing = users[idx];
+      const next = {
+        ...existing,
+        name: input.name !== undefined && String(input.name ?? '').trim() ? String(input.name).trim() : existing.name,
+        phone: input.phone !== undefined ? (input.phone ? String(input.phone).trim() : null) : (existing.phone ?? null),
+        avatarUrl: input.avatarUrl !== undefined ? (input.avatarUrl || null) : (existing.avatarUrl ?? null),
+      };
       users[idx] = next;
       return toPublicUser(next);
     },

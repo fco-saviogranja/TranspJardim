@@ -211,12 +211,12 @@ function createApp({ store, auth, config, sqlInfo }) {
     return res.status(200).json(updated);
   }));
 
-  // Rota para o próprio usuário atualizar seu perfil (nome e telefone)
+  // Rota para o próprio usuário atualizar seu perfil (nome, telefone e foto)
   app.put('/api/perfil', auth.requireAuth, wrap(async (req, res) => {
     const id = req.auth?.user?.id;
     if (!id) return res.status(401).json({ error: 'Não autenticado.' });
-    const { name, phone } = req.body ?? {};
-    const updated = await store.updatePerfil(id, { name, phone });
+    const { name, phone, avatarUrl } = req.body ?? {};
+    const updated = await store.updatePerfil(id, { name, phone, avatarUrl });
     if (!updated) return res.status(404).json({ error: 'Usuário não encontrado.' });
     return res.status(200).json(updated);
   }));
