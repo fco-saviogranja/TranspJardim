@@ -1,5 +1,10 @@
 const crypto = require('node:crypto');
 const { hashPassword } = require('../infra/password');
+const {
+  normalizePeriodicidade,
+  inferPeriodicidadeFromNome,
+  calculateSlaPriority,
+} = require('../domain/pntpRules');
 
 function nowIso() {
   return new Date().toISOString();
@@ -26,13 +31,6 @@ function normalizeStatus(value) {
   if (raw === 'pendente') return 'Pendente';
   if (raw === 'vencido') return 'Vencido';
   return 'Ativo';
-}
-
-function normalizePeriodicidade(value) {
-  const options = ['Mensal', 'Bimestral', 'Semestral', 'Anual'];
-  const normalized = String(value ?? 'Mensal').trim().toLowerCase();
-  const found = options.find((opt) => opt.toLowerCase() === normalized);
-  return found ?? 'Mensal';
 }
 
 function normalizeRole(value) {
@@ -173,12 +171,14 @@ async function createMemoryStore({ localUsers }) {
 
       const secretariaId = String(input.secretariaId ?? '').trim();
       const secretaria = secretarias.find((item) => item.id === secretariaId);
+      const periodicidadeInferida = inferPeriodicidadeFromNome(nome);
+      const periodicidadeFinal = periodicidadeInferida ?? normalizePeriodicidade(input.periodicidade);
 
       const created = {
         id: `cri-${crypto.randomUUID()}`,
         nome,
         status: normalizeStatus(input.status),
-        periodicidade: normalizePeriodicidade(input.periodicidade),
+        periodicidade: periodicidadeFinal,
         secretariaId: secretaria?.id ?? null,
         secretaria: secretaria?.nome ?? String(input.secretaria ?? '').trim(),
         responsavel: String(input.responsavel ?? '').trim(),
@@ -198,13 +198,17 @@ async function createMemoryStore({ localUsers }) {
 
       const secretariaId = input.secretariaId === undefined ? existing.secretariaId : String(input.secretariaId ?? '').trim();
       const secretaria = secretariaId ? secretarias.find((item) => item.id === secretariaId) : null;
+      const nomeAtualizado = String(input.nome ?? existing.nome).trim() || existing.nome;
+      const periodicidadeInferida = inferPeriodicidadeFromNome(nomeAtualizado);
+      const periodicidadeSolicitada =
+        input.periodicidade === undefined ? existing.periodicidade : normalizePeriodicidade(input.periodicidade);
+      const periodicidadeFinal = periodicidadeInferida ?? periodicidadeSolicitada;
 
       const next = {
         ...existing,
-        nome: String(input.nome ?? existing.nome).trim() || existing.nome,
+        nome: nomeAtualizado,
         status: input.status === undefined ? existing.status : normalizeStatus(input.status),
-        periodicidade:
-          input.periodicidade === undefined ? existing.periodicidade : normalizePeriodicidade(input.periodicidade),
+        periodicidade: periodicidadeFinal,
         secretariaId: secretaria ? secretaria.id : null,
         secretaria: secretaria ? secretaria.nome : String(input.secretaria ?? existing.secretaria ?? '').trim(),
         responsavel: input.responsavel === undefined ? existing.responsavel : String(input.responsavel ?? '').trim(),
@@ -244,12 +248,13 @@ async function createMemoryStore({ localUsers }) {
         .filter((c) => String(c.status ?? '').toLowerCase() !== 'inativo')
         .filter((c) => isAdmin || (secretariaId && c.secretariaId === secretariaId))
         .map((c) => {
-          const vencimento = new Date(hoje);
-          vencimento.setUTCMonth(vencimento.getUTCMonth() + 1);
-          const diffDias = Math.ceil((vencimento.getTime() - hoje.getTime()) / 86400000);
-          let prioridade = 'normal';
-          if (diffDias < 0) prioridade = 'vencido';
-          else if (diffDias <= 15) prioridade = 'urgente';
+          const sla = calculateSlaPriority(c.periodicidade, c.updatedAt || c.createdAt, hoje);
+          const vencimento = sla.deadline;
+          const diffDias = sla.diffDias;
+          let prioridade = sla.prioridade;
+          const semResponsavel = !String(c.responsavel ?? '').trim();
+          const semSecretaria = !String(c.secretariaId ?? '').trim();
+          if (semResponsavel || semSecretaria) prioridade = 'vencido';
           const cicloRef = hoje.toISOString().slice(0, 7);
           const situacaoObj = alertasSituacao ? alertasSituacao.find(
             (s) => s.criterioId === c.id && s.cicloRef === cicloRef,

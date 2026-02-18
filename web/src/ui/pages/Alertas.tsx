@@ -268,6 +268,24 @@ export default function Alertas() {
     }
   }
 
+  async function saveNotificacoes() {
+    setConfigSaved(false);
+    const body = {
+      notifDashboard: config.notifDashboard,
+      notifEmail: config.notifEmail,
+      notifPush: config.notifPush,
+      frequenciaNotif: config.frequenciaNotif,
+      modoSilencioso: config.modoSilencioso,
+    };
+    const res = await apiFetch('/api/alerta-config/notificacoes', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (res.ok) {
+      const d = (await res.json().catch(() => null)) as AlertaConfig | null;
+      if (d) setConfig(d);
+      setConfigSaved(true);
+      setTimeout(() => setConfigSaved(false), 3000);
+    }
+  }
+
   /* ── Tabs ── */
 
   const tabs: { key: Tab; label: string }[] = [
@@ -367,12 +385,11 @@ export default function Alertas() {
             <Bell className="h-5 w-5" />
             Preferências de Notificação
           </div>
-          {!isAdmin && <p className="mt-2 text-xs text-[var(--text-muted)]">Visualização somente leitura para usuários padrão.</p>}
 
           <div className="mt-6 grid gap-6 md:grid-cols-3">
-            <ToggleField label="Dashboard" checked={config.notifDashboard} disabled={!isAdmin} onChange={(v) => setConfig((p) => ({ ...p, notifDashboard: v }))} />
-            <ToggleField label="Email" checked={config.notifEmail} disabled={!isAdmin} onChange={(v) => setConfig((p) => ({ ...p, notifEmail: v }))} />
-            <ToggleField label="Push Notifications" checked={config.notifPush} disabled={!isAdmin} onChange={(v) => setConfig((p) => ({ ...p, notifPush: v }))} />
+            <ToggleField label="Dashboard" checked={config.notifDashboard} disabled={false} onChange={(v) => setConfig((p) => ({ ...p, notifDashboard: v }))} />
+            <ToggleField label="Email" checked={config.notifEmail} disabled={false} onChange={(v) => setConfig((p) => ({ ...p, notifEmail: v }))} />
+            <ToggleField label="Push Notifications" checked={config.notifPush} disabled={false} onChange={(v) => setConfig((p) => ({ ...p, notifPush: v }))} />
           </div>
 
           <div className="mt-8">
@@ -380,7 +397,7 @@ export default function Alertas() {
             <select
               className="mt-2 w-full rounded-lg border border-[var(--panel-border)] bg-white px-3.5 py-2.5 text-sm text-[var(--text)] outline-none transition focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-lighter)] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-[var(--text-muted)]"
               value={config.frequenciaNotif}
-              disabled={!isAdmin}
+              disabled={false}
               title="Frequência de Notificações"
               onChange={(e) => setConfig((p) => ({ ...p, frequenciaNotif: e.target.value }))}
             >
@@ -392,18 +409,16 @@ export default function Alertas() {
           </div>
 
           <div className="mt-6">
-            <ToggleField label="Modo Silencioso (Horário de Descanso)" checked={config.modoSilencioso} disabled={!isAdmin} onChange={(v) => setConfig((p) => ({ ...p, modoSilencioso: v }))} />
+            <ToggleField label="Modo Silencioso (Horário de Descanso)" checked={config.modoSilencioso} disabled={false} onChange={(v) => setConfig((p) => ({ ...p, modoSilencioso: v }))} />
           </div>
 
-          {isAdmin && (
-            <button
-              type="button"
-              className="mt-8 flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--primary-dark)]"
-              onClick={() => { void saveConfig(); }}
-            >
-              <Save className="h-4 w-4" />Salvar Configurações
-            </button>
-          )}
+          <button
+            type="button"
+            className="mt-8 flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--primary-dark)]"
+            onClick={() => { void saveNotificacoes(); }}
+          >
+            <Save className="h-4 w-4" />Salvar Notificações
+          </button>
           {configSaved && <p className="mt-2 text-center text-sm font-medium text-[var(--success)]">Configurações salvas com sucesso!</p>}
         </Panel>
       )}

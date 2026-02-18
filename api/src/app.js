@@ -196,6 +196,32 @@ function createApp({ store, auth, config, sqlInfo }) {
     res.status(200).json(updated);
   }));
 
+  app.put('/api/alerta-config/notificacoes', auth.requireAuth, wrap(async (req, res) => {
+    const current = await store.getAlertaConfig();
+    const body = req.body ?? {};
+
+    const hasNotifDashboard = Object.prototype.hasOwnProperty.call(body, 'notifDashboard');
+    const hasNotifEmail = Object.prototype.hasOwnProperty.call(body, 'notifEmail');
+    const hasNotifPush = Object.prototype.hasOwnProperty.call(body, 'notifPush');
+    const hasFrequenciaNotif = Object.prototype.hasOwnProperty.call(body, 'frequenciaNotif');
+    const hasModoSilencioso = Object.prototype.hasOwnProperty.call(body, 'modoSilencioso');
+
+    const frequenciasPermitidas = new Set(['imediato', 'horario', 'diario', 'semanal']);
+    const frequencia = hasFrequenciaNotif ? String(body.frequenciaNotif ?? '').trim().toLowerCase() : current.frequenciaNotif;
+
+    const payload = {
+      ...current,
+      notifDashboard: hasNotifDashboard ? body.notifDashboard === true : current.notifDashboard,
+      notifEmail: hasNotifEmail ? body.notifEmail === true : current.notifEmail,
+      notifPush: hasNotifPush ? body.notifPush === true : current.notifPush,
+      frequenciaNotif: frequenciasPermitidas.has(frequencia) ? frequencia : current.frequenciaNotif,
+      modoSilencioso: hasModoSilencioso ? body.modoSilencioso === true : current.modoSilencioso,
+    };
+
+    const updated = await store.updateAlertaConfig(payload);
+    res.status(200).json(updated);
+  }));
+
   app.get('/api/admin/overview', auth.requireAdmin, wrap(async (_req, res) => {
     const data = await store.getAdminOverview();
     res.status(200).json(data);

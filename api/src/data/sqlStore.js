@@ -1,4 +1,9 @@
 const { hashPassword } = require('../infra/password');
+const {
+  normalizePeriodicidade,
+  inferPeriodicidadeFromNome,
+  calculateSlaPriority,
+} = require('../domain/pntpRules');
 
 function normalizeRole(value) {
   const role = String(value ?? 'padrao').trim().toLowerCase();
@@ -11,13 +16,6 @@ function normalizeStatus(value) {
   if (raw === 'pendente') return 'Pendente';
   if (raw === 'vencido') return 'Vencido';
   return 'Ativo';
-}
-
-function normalizePeriodicidade(value) {
-  const options = ['Mensal', 'Bimestral', 'Trimestral', 'Quadrimestral', 'Semestral', 'Anual'];
-  const normalized = String(value ?? 'Mensal').trim().toLowerCase();
-  const found = options.find((opt) => opt.toLowerCase() === normalized);
-  return found ?? 'Mensal';
 }
 
 // Retorna a data limite do ciclo atual para uma dada periodicidade
@@ -437,10 +435,12 @@ async function createSqlStore({ sqlClient, localUsers }) {
       if (!nome) throw Object.assign(new Error('Nome do critério é obrigatório.'), { statusCode: 400 });
 
       const secretariaId = String(input.secretariaId ?? '').trim();
+      const periodicidadeInferida = inferPeriodicidadeFromNome(nome);
+      const periodicidadeFinal = periodicidadeInferida ?? normalizePeriodicidade(input.periodicidade);
       const result = await query((req) => {
         req.input('nome', sql.NVarChar(200), nome);
         req.input('status', sql.NVarChar(30), normalizeStatus(input.status));
-        req.input('periodicidade', sql.NVarChar(30), normalizePeriodicidade(input.periodicidade));
+        req.input('periodicidade', sql.NVarChar(30), periodicidadeFinal);
         req.input('secretariaId', sql.UniqueIdentifier, secretariaId || null);
         req.input('responsavel', sql.NVarChar(200), String(input.responsavel ?? '').trim() || null);
         req.input('descricao', sql.NVarChar(sql.MAX), String(input.descricao ?? '').trim() || null);
@@ -474,10 +474,22 @@ async function createSqlStore({ sqlClient, localUsers }) {
     },
 
     async updateCriterio(id, input) {
+      const current = await this.findCriterioById(id);
+      if (!current) return null;
+
+      const nomeAtualizado = input.nome !== undefined ? String(input.nome ?? '').trim() : current.nome;
+      const periodicidadeInferida = inferPeriodicidadeFromNome(nomeAtualizado);
+      const periodicidadeSolicitada = input.periodicidade !== undefined
+        ? normalizePeriodicidade(input.periodicidade)
+        : current.periodicidade;
+      const periodicidadeFinal = periodicidadeInferida ?? periodicidadeSolicitada;
+
       const updates = [];
       if (input.nome !== undefined) updates.push('Nome = @nome');
       if (input.status !== undefined) updates.push('Status = @status');
-      if (input.periodicidade !== undefined) updates.push('Periodicidade = @periodicidade');
+      if (input.periodicidade !== undefined || input.nome !== undefined || periodicidadeFinal !== current.periodicidade) {
+        updates.push('Periodicidade = @periodicidade');
+      }
       if (input.secretariaId !== undefined) updates.push('SecretariaId = @secretariaId');
       if (input.responsavel !== undefined) updates.push('Responsavel = @responsavel');
       if (input.descricao !== undefined) updates.push('Descricao = @descricao');
@@ -487,8 +499,8 @@ async function createSqlStore({ sqlClient, localUsers }) {
         req.input('id', sql.UniqueIdentifier, id);
         if (input.nome !== undefined) req.input('nome', sql.NVarChar(200), String(input.nome ?? '').trim());
         if (input.status !== undefined) req.input('status', sql.NVarChar(30), normalizeStatus(input.status));
-        if (input.periodicidade !== undefined) {
-          req.input('periodicidade', sql.NVarChar(30), normalizePeriodicidade(input.periodicidade));
+        if (input.periodicidade !== undefined || input.nome !== undefined || periodicidadeFinal !== current.periodicidade) {
+          req.input('periodicidade', sql.NVarChar(30), periodicidadeFinal);
         }
         if (input.secretariaId !== undefined) {
           req.input('secretariaId', sql.UniqueIdentifier, String(input.secretariaId ?? '').trim() || null);
@@ -607,15 +619,16 @@ async function createSqlStore({ sqlClient, localUsers }) {
       }
 
       return Array.from(seen.values()).map((row) => {
-        const vencimento = calcularVencimentoCiclo(row.periodicidade, hoje);
-        const diffMs = vencimento.getTime() - hoje.getTime();
-        const diffDias = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+        const sla = calculateSlaPriority(row.periodicidade, row.ultimaAtualizacao, hoje);
+        const vencimento = sla.deadline;
+        const diffDias = sla.diffDias;
         const cicloRef = calcularCicloRef(row.periodicidade, hoje);
 
         // Prioridade automática por prazo
-        let prioridade = 'normal';
-        if (diffDias < 0) prioridade = 'vencido';
-        else if (diffDias <= 15) prioridade = 'urgente';
+        let prioridade = sla.prioridade;
+        const semResponsavel = !String(row.responsavel ?? '').trim();
+        const semSecretaria = !String(row.secretariaId ?? '').trim();
+        if (semResponsavel || semSecretaria) prioridade = 'vencido';
 
         // Se houver alerta manual com prioridade explícita, usa ela
         let prioridadeFinal = row.prioridadeManual || prioridade;

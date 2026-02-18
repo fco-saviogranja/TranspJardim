@@ -8,6 +8,7 @@
     "dev": "node src/index.js",
     "start": "node src/index.js",
     "copy:web": "node scripts/copy-web-build.js",
+    "backfill:periodicidades": "node scripts/backfill-periodicidades-pntp.js",
     "lint": "node scripts/lint.js",
     "test": "node --test"
   },

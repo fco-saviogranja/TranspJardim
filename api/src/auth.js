@@ -280,14 +280,6 @@ function createAuth({ config, store }) {
   }
 
   async function logoutHandler(req, res) {
-    // Clear local Bearer session if present
-    let token = String(req.headers['x-auth-token'] ?? '').trim();
-    if (!token) {
-      const authHeader = String(req.headers.authorization ?? '');
-      token = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length).trim() : '';
-    }
-    if (token) localSessions.delete(token);
-
     // In hybrid/easy-auth mode, always return logoutUrl so the frontend
     // can redirect to /.auth/logout and clear the Easy Auth cookie.
     const logoutUrl = easyAuthEnabled() ? '/.auth/logout' : null;
