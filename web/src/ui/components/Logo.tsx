@@ -7,7 +7,6 @@ export function Logo({ size = 36, light = false }: { size?: number; light?: bool
       alt="TranspJardim"
       width={size}
       height={size}
-      className={light ? 'brightness-0 invert' : undefined}
       draggable={false}
     />
   );
