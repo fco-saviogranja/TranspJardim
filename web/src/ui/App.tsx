@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Navigate,
   NavLink,
@@ -14,9 +14,11 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  Pencil,
   Settings,
   Shield,
   Users,
+  X,
 } from 'lucide-react';
 
 import Dashboard from './pages/Dashboard';
@@ -149,9 +151,172 @@ function Sidebar({
   );
 }
 
+/* ─── Profile Modal ─── */
+function ProfileModal({
+  user,
+  onClose,
+  onSaved,
+}: {
+  user: User;
+  onClose: () => void;
+  onSaved: (updated: Partial<User>) => void;
+}) {
+  const [name, setName] = useState(user.name);
+  const [phone, setPhone] = useState(user.phone ?? '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) { setError('Nome não pode ficar em branco.'); return; }
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/perfil', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authStorage.getToken() ? { 'X-Auth-Token': authStorage.getToken()! } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({ name: name.trim(), phone: phone.trim() || null }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(data.error ?? 'Erro ao salvar.');
+      }
+      const updated = await res.json() as Partial<User>;
+      onSaved(updated);
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro desconhecido.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+      {/* Backdrop */}
+      <button
+        type="button"
+        aria-label="Fechar"
+        className="absolute inset-0 bg-black/40"
+        onClick={onClose}
+      />
+      {/* Sheet */}
+      <div className="relative w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-xl shadow-xl p-6 max-h-[92dvh] overflow-y-auto">
+        {/* Handle bar (mobile) */}
+        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-slate-200 sm:hidden" />
+
+        {/* Header */}
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold text-[var(--text)]">Meu Perfil</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="grid h-8 w-8 place-items-center rounded-lg text-[var(--text-muted)] hover:bg-slate-100"
+            aria-label="Fechar"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Avatar */}
+        <div className="flex flex-col items-center mb-6">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[var(--primary-lighter)] text-3xl font-bold text-[var(--primary)]">
+            {(name || user.name || 'U').charAt(0).toUpperCase()}
+          </div>
+          <p className="mt-2 text-sm text-[var(--text-muted)]">{user.username}</p>
+        </div>
+
+        <form onSubmit={handleSave} className="flex flex-col gap-4">
+          {/* Nome */}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-[var(--text)]">Nome</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full rounded-lg border border-[var(--panel-border)] bg-white px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20"
+              placeholder="Seu nome completo"
+              required
+            />
+          </div>
+
+          {/* Telefone */}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-[var(--text)]">Telefone</label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full rounded-lg border border-[var(--panel-border)] bg-white px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20"
+              placeholder="(00) 00000-0000"
+            />
+          </div>
+
+          {/* E-mail (somente leitura) */}
+          <div>
+            <label className="mb-1 flex items-center gap-1 text-sm font-medium text-[var(--text)]">
+              E-mail
+              <span className="text-xs text-[var(--text-muted)]">(apenas admin pode alterar)</span>
+            </label>
+            <input
+              type="email"
+              value={user.email}
+              readOnly
+              title="E-mail (somente leitura)"
+              className="w-full rounded-lg border border-[var(--panel-border)] bg-slate-50 px-3 py-2 text-sm text-[var(--text-muted)] cursor-not-allowed"
+            />
+          </div>
+
+          {error && (
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
+          )}
+
+          <button
+            type="submit"
+            disabled={saving}
+            className="mt-1 rounded-lg bg-[var(--primary)] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+          >
+            {saving ? 'Salvando...' : 'Salvar alterações'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Top bar ─── */
-function TopBar({ user, onOpenNav }: { user: User | null; onOpenNav: () => void }) {
+function TopBar({
+  user,
+  onOpenNav,
+  onLogout,
+  onProfileSaved,
+}: {
+  user: User | null;
+  onOpenNav: () => void;
+  onLogout: () => void;
+  onProfileSaved: (updated: Partial<User>) => void;
+}) {
   const location = useLocation();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Fechar dropdown ao clicar fora
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    if (dropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [dropdownOpen]);
 
   const pageTitle = useMemo(() => {
     const p = location.pathname;
@@ -163,29 +328,80 @@ function TopBar({ user, onOpenNav }: { user: User | null; onOpenNav: () => void 
     return 'Dashboard';
   }, [location.pathname]);
 
+  const initials = (user?.name ?? 'U').charAt(0).toUpperCase();
+  const displayName = user?.name ?? 'Usuário';
+  const roleLabel = user?.role === 'admin' ? 'Administrador' : 'Padrão';
+
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[var(--panel-border)] bg-white/80 px-4 backdrop-blur-md sm:px-6">
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={onOpenNav}
-          aria-label="Abrir menu"
-          className="grid h-9 w-9 place-items-center rounded-lg text-[var(--text-muted)] hover:bg-slate-100 hover:text-[var(--text)] md:hidden"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
-        <h1 className="text-lg font-bold text-[var(--text)]">{pageTitle}</h1>
-      </div>
-      <div className="flex items-center gap-3">
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--primary-lighter)] text-sm font-bold text-[var(--primary)]">
-          {(user?.name ?? 'U').charAt(0).toUpperCase()}
+    <>
+      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[var(--panel-border)] bg-white/80 px-4 backdrop-blur-md sm:px-6">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={onOpenNav}
+            aria-label="Abrir menu"
+            className="grid h-9 w-9 place-items-center rounded-lg text-[var(--text-muted)] hover:bg-slate-100 hover:text-[var(--text)] md:hidden"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <h1 className="text-lg font-bold text-[var(--text)]">{pageTitle}</h1>
         </div>
-        <div className="hidden sm:block">
-          <div className="text-sm font-semibold text-[var(--text)]">{user?.name ?? 'Usuário'}</div>
-          <div className="text-xs text-[var(--text-muted)]">{user?.role === 'admin' ? 'Administrador' : 'Padrão'}</div>
+
+        {/* Avatar + nome + dropdown */}
+        <div className="relative" ref={dropdownRef}>
+          <button
+            type="button"
+            onClick={() => setDropdownOpen((p) => !p)}
+            aria-label="Menu do usuário"
+            aria-haspopup="true"
+            className="flex items-center gap-2 rounded-xl px-2 py-1 hover:bg-slate-100 transition-colors"
+          >
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--primary-lighter)] text-sm font-bold text-[var(--primary)]">
+              {initials}
+            </div>
+            <div className="flex flex-col items-start leading-tight">
+              <span className="max-w-[120px] truncate text-sm font-semibold text-[var(--text)]">{displayName}</span>
+              <span className="text-xs text-[var(--text-muted)]">{roleLabel}</span>
+            </div>
+          </button>
+
+          {/* Dropdown */}
+          {dropdownOpen && (
+            <div className="absolute right-0 top-full mt-2 w-48 rounded-xl border border-[var(--panel-border)] bg-white shadow-lg py-1 z-50">
+              <button
+                type="button"
+                onClick={() => { setDropdownOpen(false); setProfileOpen(true); }}
+                className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-[var(--text)] hover:bg-slate-50 transition-colors"
+              >
+                <Pencil className="h-4 w-4 text-[var(--text-muted)]" />
+                Meu Perfil
+              </button>
+              <div className="my-1 border-t border-[var(--panel-border)]" />
+              <button
+                type="button"
+                onClick={() => { setDropdownOpen(false); onLogout(); }}
+                className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+              >
+                <LogOut className="h-4 w-4" />
+                Sair
+              </button>
+            </div>
+          )}
         </div>
-      </div>
-    </header>
+      </header>
+
+      {/* Profile Modal */}
+      {profileOpen && user && (
+        <ProfileModal
+          user={user}
+          onClose={() => setProfileOpen(false)}
+          onSaved={(updated) => {
+            onProfileSaved(updated);
+            authStorage.updateUser(updated);
+          }}
+        />
+      )}
+    </>
   );
 }
 
@@ -218,7 +434,12 @@ function Shell({ user, onLogout, children }: { user: User | null; onLogout: () =
       <div
         className={`transition-all duration-200 ml-0 ${collapsed ? 'md:ml-[68px]' : 'md:ml-[240px]'}`}
       >
-        <TopBar user={user} onOpenNav={() => setMobileOpen(true)} />
+        <TopBar
+          user={user}
+          onOpenNav={() => setMobileOpen(true)}
+          onLogout={onLogout}
+          onProfileSaved={(updated) => authStorage.updateUser(updated)}
+        />
         <main className="mx-auto w-full max-w-[1200px] p-3 sm:p-4 lg:p-6">
           {children}
         </main>

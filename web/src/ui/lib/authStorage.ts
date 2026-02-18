@@ -4,6 +4,7 @@ export type User = {
   role: 'admin' | 'padrao' | string;
   name: string;
   email: string;
+  phone?: string | null;
 };
 
 type AuthPayload = {
@@ -49,6 +50,14 @@ export const authStorage = {
   setAuth(auth: AuthPayload) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(auth));
     for (const fn of listeners) fn(auth.user);
+  },
+
+  updateUser(patch: Partial<User>) {
+    const current = readAuth();
+    if (!current) return;
+    const updated: AuthPayload = { ...current, user: { ...current.user, ...patch } };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    for (const fn of listeners) fn(updated.user);
   },
 
   clear() {
